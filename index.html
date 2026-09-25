@@ -323,7 +323,7 @@ document.getElementById("roofBtn").addEventListener("click", e => { if (!three.r
 function view3d(){ const c = three.camera, R = 34; if (c.fov !== 50){ c.fov = 50; c.updateProjectionMatrix(); } three.controls.target.set(0,0,-1); c.position.set(-R*0.55, -R*0.85, R*0.45); three.controls.update(); }
 function setCut(h){
   $("cut").value = h; three.cutPlane.constant = (+h >= 6.95) ? 1e3 : (+h - three.ctr[2]);
-  $("cutv").textContent = (+h >= 6.95) ? "off" : `${(+h + 4.65 >= 0 ? "+" : "−")}${Math.abs(+h + 4.65).toFixed(2)} m`;
+  $("cutv").textContent = (+h >= 6.95) ? "off" : `${(+h + 4.36 >= 0 ? "+" : "−")}${Math.abs(+h + 4.36).toFixed(2)} m`;
 }
 // Markers are sized in screen pixels (not a fraction of the view), so they stay small on big screens.
 S.mk = {on:true, px:22};
