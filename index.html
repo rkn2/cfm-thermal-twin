@@ -146,7 +146,8 @@ ul.plain,ol.plain{margin:6px 0 0;padding-left:18px;display:grid;gap:4px;font-siz
         </div>
         <div class="overlay bottom" id="thermalbar" style="bottom:52px" hidden>
           <span class="tool" role="group" aria-label="Thermal survey date" id="thdate">Survey <button type="button" class="cm" data-d="feb20" aria-pressed="true">Feb 20</button><button type="button" class="cm" data-d="mar27" aria-pressed="false">Mar 27</button></span>
-          <label class="tool">Scale °F <input type="number" id="thlo" step="1" aria-label="Low end of the colour scale, °F"> to <input type="number" id="thhi" step="1" aria-label="High end of the colour scale, °F"></label>
+          <span class="tool" role="group" aria-label="Thermal value" id="thshow">Show <button type="button" class="cm" data-v="t" aria-pressed="true">°F</button><button type="button" class="cm" data-v="d" aria-pressed="false">Difference</button></span>
+          <label class="tool" id="thscale">Scale °F <input type="number" id="thlo" step="1" aria-label="Low end of the colour scale, °F"> to <input type="number" id="thhi" step="1" aria-label="High end of the colour scale, °F"></label>
           <span class="tool" id="thread" aria-live="off">Hover the model</span>
           <button class="tool" type="button" id="thall" hidden>Show all frames</button>
         </div>
@@ -174,6 +175,7 @@ ul.plain,ol.plain{margin:6px 0 0;padding-left:18px;display:grid;gap:4px;font-siz
     <p>This combines the March 23, 2026 laser scan (Z+F FlexScan 22) with the February 20 and March 27 FLIR E50 thermal surveys, both by Shayla Hines (Penn State AE). The thermal findings are an AI-assisted first pass for Shayla to triage. Pins marked with a dashed ring were placed by Claude from the order of the photos and still need confirming. Unplaced groups are waiting for Shayla to pin them. This shared copy is a read-only snapshot taken 2026-09-25; pins and notes are edited in the team's working copy.</p>
     <p>The roof in the 3D view comes from Shayla's drone video and photos (Feb 20, 2026), turned into a 3D model with Apple Object Capture and registered to the laser scan. Diamond markers show where each roof photo was aimed, accurate to about 0.5–1 m.</p>
     <p>“Thermal” in the 3D view drapes the FLIR images onto the scan: 36 exterior images from 10 groups and 20 room images: the coat room (groups J and O) and the Hearth Room stove corner (groups I and L), each lined up with the laser scan by Claude from the camera's built-in visible photo or from window and vent outlines. Where the pale masonry scanned sparsely, the image sits on a simple measured model of the walls. Temperatures use the camera's settings (emissivity 0.95, reflected temperature 68 °F). Room images sit on the full-resolution scan and use their own colour scale, since rooms read 20–30 °F warmer than the outside walls. The cold cavity (N), groups A and M, and the coat-room ceiling-patch frames are not draped yet.</p>
+    <p>In the thermal view, “Difference” shows each outside wall relative to the 1.5 m of wall around it, and each room as the temperature factor <i>f</i> (below 0.75 means mould risk). The numbers behind it, including anomaly maps and a comparison of the two survey days, are on the team's <a href="https://claude.ai/artifact/7bWpictLLfEyLKf7SxreEU" target="_blank" rel="noopener">thermal analysis page</a> (team access only).</p>
     <p>The 3D view is a 10-million-point copy of the full 506-million-point scan, resampled to even density (denser on the building than on the ground) with scanner edge streaks filtered out. It loads a quarter first, then adds detail; phones get the quarter only. The drawings are at 1 cm per pixel (1:100). Orientation follows the building's walls, not true north.</p>
   </details>
 </div>
@@ -398,7 +400,7 @@ async function setColorMode(m){
 // Each frame is a small mesh (121x91 vertex grid on the scan / wall shell) textured with its temperature image.
 const INFERNO = [[0,0,4],[27,12,65],[74,12,107],[120,28,109],[165,44,96],[207,68,70],[237,105,37],[251,155,6],[252,255,164]];
 function inferno(t){ t = Math.min(1, Math.max(0, t)) * 8; const i = Math.min(7, Math.floor(t)), f = t - i, a = INFERNO[i], b = INFERNO[i+1]; return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f]; }
-S.thDate = "feb20";
+S.thDate = "feb20"; S.thShow = "t";
 async function loadThermal(){
   if (three.th) return;
   $("msg3d").hidden = false; $("msg3d").textContent = "Loading thermal images…";
@@ -431,8 +433,28 @@ async function loadThermal(){
   three.th = {L, group, meshes}; group.visible = false;
   $("msg3d").hidden = true; setThermalDate(S.thDate, true);
 }
+// Difference view: outside walls = degF above the surrounding 1.5 m of the same wall (blue cool, red warm, +-4 F);
+// rooms = temperature factor f (red below the 0.75 mould-risk line, blue above).
+function divRGB(t){ const k = Math.min(1, Math.abs(t)), mid = [240,239,236], b = t < 0 ? [42,120,214] : [227,73,72]; return mid.map((c,i) => c + (b[i]-c)*k); }
+async function loadDiff(){
+  if (three.th.diffLoaded) return; const L = three.th.L, bufs = {};
+  for (const fn of new Set(L.frames.map(f => f.diff_file).filter(Boolean))) bufs[fn] = unpng(await grab(fn));
+  for (const m of three.th.meshes){ const f = m.userData.f; if (f.diff_file) m.userData.diff = new Int16Array(bufs[f.diff_file].slice(f.diff_offset, f.diff_offset + L.tw*L.th*2)); }
+  three.th.diffLoaded = true;
+}
 function paintThermal(){
   const th = three.th, TW = th.L.tw, TH = th.L.th;
+  if (S.thShow === "d"){
+    for (const m of th.meshes){
+      m.visible = m.userData.f.date === S.thDate && (!S.thSolo || m.userData.f.id === S.thSolo); if (!m.visible) continue;
+      const d = m.userData.diff, px = m.userData.tex.image.data, inr = m.userData.f.interior;
+      for (let i=0;i<TW*TH;i++){ const raw = d ? d[i] : -32768; let c;
+        if (raw === -32768) c = [70,74,72]; else if (inr) c = divRGB(Math.max(-1, Math.min(1, (0.75 - raw/1000) / 0.2))); else c = divRGB(raw/100/4);
+        px[4*i] = c[0]; px[4*i+1] = c[1]; px[4*i+2] = c[2]; px[4*i+3] = 255; }
+      m.userData.tex.needsUpdate = true;
+    }
+    legend(); return;
+  }
   for (const m of th.meshes){
     m.visible = m.userData.f.date === S.thDate && (!S.thSolo || m.userData.f.id === S.thSolo); if (!m.visible) continue;
     const [lo, hi] = m.userData.f.interior ? th.rangeIn : th.range, t = m.userData.temps, px = m.userData.tex.image.data;
@@ -448,6 +470,10 @@ function setThermalDate(d, force){
   for (const b of document.querySelectorAll("#thdate .cm")) b.setAttribute("aria-pressed", b.dataset.d === d);
   paintThermal();
 }
+$("thshow").addEventListener("click", async e => { const b = e.target.closest(".cm"); if (!b || !three.th) return;
+  if (b.dataset.v === "d"){ try { await loadDiff(); } catch(err){ console.error("[twin] diff", err); return; } }
+  S.thShow = b.dataset.v; for (const x of document.querySelectorAll("#thshow .cm")) x.setAttribute("aria-pressed", x.dataset.v === S.thShow);
+  $("thscale").hidden = S.thShow === "d"; paintThermal(); });
 $("thdate").addEventListener("click", e => { const b = e.target.closest(".cm"); if (b && three.th) setThermalDate(b.dataset.d); });
 for (const id of ["thlo", "thhi"]) $(id).addEventListener("change", () => { if (!three.th) return; const lo = +$("thlo").value, hi = +$("thhi").value; if (hi > lo){ if (S.thScopeIn) three.th.rangeIn = [lo, hi]; else three.th.range = [lo, hi]; paintThermal(); } });
 $("thall").addEventListener("click", () => { S.thSolo = null; S.thScopeIn = false; $("thlo").value = three.th.range[0]; $("thhi").value = three.th.range[1]; $("thall").hidden = true; paintThermal(); });
@@ -459,7 +485,9 @@ function thermalHover(e){
   const hit = ray.intersectObjects(three.th.meshes.filter(m => m.visible))[0];
   if (!hit || !hit.uv){ $("thread").textContent = "Hover the model"; return; }
   const u = hit.object.userData, TW = three.th.L.tw, TH = three.th.L.th, x = Math.min(TW-1, Math.floor(hit.uv.x*TW)), y = Math.min(TH-1, Math.floor(hit.uv.y*TH));
-  $("thread").textContent = `${(u.temps[y*TW+x]/100).toFixed(1)} °F · ${u.f.id}${u.g ? " · Group " + u.g : ""}`;
+  let txt = `${(u.temps[y*TW+x]/100).toFixed(1)} °F`;
+  if (S.thShow === "d" && u.diff){ const r = u.diff[y*TW+x]; txt = r === -32768 ? "no value (opening, trim or off the wall)" : u.f.interior ? `f = ${(r/1000).toFixed(2)}${r/1000 < 0.75 ? " (below 0.75)" : ""}` : `${r >= 0 ? "+" : "−"}${Math.abs(r/100).toFixed(1)} °F vs surrounding wall`; }
+  $("thread").textContent = `${txt} · ${u.f.id}${u.g ? " · Group " + u.g : ""}`;
 }
 async function viewFrom(id){
   setTab("3d"); await setColorMode("thermal"); if (!three.th) return;
@@ -553,7 +581,7 @@ function locate3d(g){
 }
 function legend(){
   const L = S.colorby === "conf" ? [["hi","High"],["md","Medium"],["lo","Low"]] : [["hi","Confirmed"],["md","Needs change"],["na","Not triaged"]];
-  const thl = S.tab === "3d" && S.cm === "thermal" && three && three.th ? `<span class="thleg">${(S.thScopeIn ? three.th.rangeIn : three.th.range)[0]} °F <i class="g"></i> ${(S.thScopeIn ? three.th.rangeIn : three.th.range)[1]} °F</span>${three.th.L.range[S.thDate + "_in"] ? `<span>${S.thScopeIn ? "Room scale" : "Outside scale"}; ${S.thScopeIn ? "outside walls" : "rooms"} use ${(S.thScopeIn ? three.th.range : three.th.rangeIn).join("–")} °F</span>` : ""}<span>Surface temperature, ${S.thDate === "feb20" ? "Feb 20" : "Mar 27"} survey, on the scan (grey)</span>` : "";
+  const thl = S.tab === "3d" && S.cm === "thermal" && three && three.th && S.thShow === "d" ? `<span class="devleg">Outside walls: 4 °F cooler <i class="g"></i> 4 °F warmer than the surrounding wall</span><span class="devleg">Rooms: f 0.55 <i class="g" style="background:linear-gradient(90deg,#e34948,#f0efec,#2a78d6)"></i> 0.95 (below 0.75 = mould risk)</span><span><i style="background:#464a48"></i>No value</span>` : S.tab === "3d" && S.cm === "thermal" && three && three.th ? `<span class="thleg">${(S.thScopeIn ? three.th.rangeIn : three.th.range)[0]} °F <i class="g"></i> ${(S.thScopeIn ? three.th.rangeIn : three.th.range)[1]} °F</span>${three.th.L.range[S.thDate + "_in"] ? `<span>${S.thScopeIn ? "Room scale" : "Outside scale"}; ${S.thScopeIn ? "outside walls" : "rooms"} use ${(S.thScopeIn ? three.th.range : three.th.rangeIn).join("–")} °F</span>` : ""}<span>Surface temperature, ${S.thDate === "feb20" ? "Feb 20" : "Mar 27"} survey, on the scan (grey)</span>` : "";
   const dev = thl + (S.tab === "3d" && S.cm === "dev" ? `<span class="devleg">Wall offset from vertical: 40 mm in <i class="g"></i> 40 mm out</span><span><i style="background:#969c98"></i>Shutters, openings, trim</span><span><i style="background:#555"></i>Not a measured wall</span>` : "");
   $("legend").innerHTML = dev + L.map(([c,l]) => `<span><i class="${c}"></i>${l}</span>`).join("") + `<span><i style="border:2px dashed var(--ink-2);background:none"></i>Placed by Claude, unconfirmed</span>${S.tab==="3d" && S.data.roof ? `<span><i style="background:var(--ink-2)"></i>Letters: thermal photo groups</span><span><i style="border-radius:2px;transform:rotate(45deg);background:var(--ink-2)"></i>R1–R10: roof findings (drone)</span>` : ""}<span class="hint">${S.tab==="3d"?"Click a pin · drag to orbit · use Cut height to see inside":"Click a pin · drag to pan · scroll to zoom"}</span>`;
 }
