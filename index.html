@@ -27,6 +27,10 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-vi
 .wrap{max-width:1320px;margin:0 auto;padding-block:22px 48px;display:grid;gap:16px}
 h1,h2,h3{margin:0;text-wrap:balance}
 .eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 16px}
+.pagelink{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid var(--line);border-radius:8px;padding:8px 14px;text-decoration:none}
+.pagelink:hover{border-color:var(--accent)}
+.pagelink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .top h1{font-size:24px;font-weight:700;letter-spacing:-.01em;margin-top:2px}
 .status{margin:0;font-size:15px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:4px 14px}
 .status strong{color:var(--ink);font-weight:600}
@@ -117,8 +121,11 @@ ul.plain,ol.plain{margin:6px 0 0;padding-left:18px;display:grid;gap:4px;font-siz
 
 <div class="wrap">
   <header class="top">
-    <div class="eyebrow">Centre Furnace Mansion · State College, PA</div>
-    <h1>Thermal twin</h1>
+    <div>
+      <div class="eyebrow">Centre Furnace Mansion · State College, PA</div>
+      <h1>Thermal twin</h1>
+    </div>
+    <nav class="pages" aria-label="Pages"><a class="pagelink" href="analysis.html">Thermal analysis <span aria-hidden="true">→</span></a></nav>
   </header>
   <p class="status" id="status">Loading…</p>
   <main class="layout">
@@ -175,7 +182,7 @@ ul.plain,ol.plain{margin:6px 0 0;padding-left:18px;display:grid;gap:4px;font-siz
     <p>This combines the March 23, 2026 laser scan (Z+F FlexScan 22) with the February 20 and March 27 FLIR E50 thermal surveys, both by Shayla Hines (Penn State AE). The thermal findings are an AI-assisted first pass for Shayla to triage. Pins marked with a dashed ring were placed by Claude from the order of the photos and still need confirming. Unplaced groups are waiting for Shayla to pin them. This shared copy is a read-only snapshot taken 2026-09-25; pins and notes are edited in the team's working copy.</p>
     <p>The roof in the 3D view comes from Shayla's drone video and photos (Feb 20, 2026), turned into a 3D model with Apple Object Capture and registered to the laser scan. Diamond markers show where each roof photo was aimed, accurate to about 0.5–1 m.</p>
     <p>“Thermal” in the 3D view drapes the FLIR images onto the scan: 36 exterior images from 10 groups and 20 room images: the coat room (groups J and O) and the Hearth Room stove corner (groups I and L), each lined up with the laser scan by Claude from the camera's built-in visible photo or from window and vent outlines. Where the pale masonry scanned sparsely, the image sits on a simple measured model of the walls. Temperatures use the camera's settings (emissivity 0.95, reflected temperature 68 °F). Room images sit on the full-resolution scan and use their own colour scale, since rooms read 20–30 °F warmer than the outside walls. The cold cavity (N), groups A and M, and the coat-room ceiling-patch frames are not draped yet.</p>
-    <p>In the thermal view, “Difference” shows each outside wall relative to the 1.5 m of wall around it, and each room as the temperature factor <i>f</i> (below 0.75 means mould risk). The numbers behind it, including anomaly maps and a comparison of the two survey days, are on the <a href="analysis.html" target="_blank" rel="noopener">thermal analysis page</a>.</p>
+    <p>In the thermal view, “Difference” shows each outside wall relative to the 1.5 m of wall around it, and each room as the temperature factor <i>f</i> (below 0.75 means mould risk). The numbers behind it, including anomaly maps and a comparison of the two survey days, are on the <a href="analysis.html">thermal analysis page</a>.</p>
     <p>The 3D view is a 10-million-point copy of the full 506-million-point scan, resampled to even density (denser on the building than on the ground) with scanner edge streaks filtered out. It loads a quarter first, then adds detail; phones get the quarter only. The drawings are at 1 cm per pixel (1:100). Orientation follows the building's walls, not true north.</p>
   </details>
 </div>
@@ -629,7 +636,7 @@ function renderPanel(){
     const secs = S.data.sections.map(s => `<div><h3>${esc(s.title)}</h3><div class="rows">${s.groups.map(id => rowHtml(group(id))).join("") || '<p class="small">No images from this area.</p>'}</div></div>`).join("");
     const roofList = S.data.roof ? `<div><h3>Roof (drone survey)</h3><div class="rows">${S.data.roof.pois.map(r => `<button type="button" class="row" data-g="${r.id}"><span class="badge ${r.conf}" style="border-radius:4px;transform:rotate(45deg)"><span style="transform:rotate(-45deg);font-size:10px">${r.id}</span></span><span class="name">${esc(r.title)}</span><span></span><span class="meta">${r.photos.length} photos · ${r.pos ? "marked in 3D" : "not placed"}</span></button>`).join("")}</div></div>` : "";
     P.innerHTML = `<div><h2>Findings</h2><p class="sub">An AI-assisted first pass, grouped by the moisture concerns CCHS listed. Pick a group to see its images and the call on it.</p>
-      <p class="small" style="margin-top:6px"><a href="analysis.html" target="_blank" rel="noopener">Open the thermal analysis page</a> (anomaly maps and a comparison of the two survey days)</p></div>${secs}
+      <p class="small" style="margin-top:6px"><a href="analysis.html">Open the thermal analysis page</a> (anomaly maps and a comparison of the two survey days)</p></div>${secs}
       ${S.data.plumb ? `<div><h3>Wall plumbness</h3><div class="rows">${[["front","Front"],["left","Left side"],["right","Right side"],["rear","Rear (main block)"],["wing_right","Wing, right side"],["wing_rear","Wing, rear"]].map(([k,l]) => { const p = S.data.plumb[k]; return `<div class="row" style="cursor:default;grid-template-columns:1fr auto"><span class="name">${l}</span><span style="font-family:var(--mono);font-size:12px">${p.lean_mm_per_m>0?"+":""}${p.lean_mm_per_m} mm/m · top ${p.top_offset_mm>0?"+":""}${p.top_offset_mm} mm</span></div>`; }).join("")}</div>
         <p class="small">+ means the top leans outward. No wall leans more than about 1 in 320. Use “Wall deviation” in the 3D view to see it on the scan.</p></div>` : ""}
       ${roofList}
