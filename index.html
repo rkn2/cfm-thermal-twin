@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex, nofollow">
+<title>Centre Furnace Thermal Twin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f3f5f3;--surface:#fff;--ink:#16211c;--ink-2:#4a5550;--muted:#7a847f;--line:#dfe4e0;--grid:#edf0ee;
+  --accent:#1f5c4a;--accent-soft:#e4eee9;--good:#0ca30c;--warn:#d99a00;--warn-ink:#8a6200;--crit:#d03b3b;--none:#9aa39e;
+  --good-bg:#e5f4e5;--warn-bg:#fbf0d4;--crit-bg:#fbe6e6;--chk:#fff4c2;
+  --sans:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;
+  --bg:#101513;--surface:#181f1c;--ink:#edf2ef;--ink-2:#b6c1bb;--muted:#87928c;--line:#2a332f;--grid:#222a26;
+  --accent:#7cc3a8;--accent-soft:#1e2b25;--warn:#fab219;--warn-ink:#fab219;--crit:#e66767;--none:#5a645f;
+  --good-bg:#16301a;--warn-bg:#33290f;--crit-bg:#3a1c1c;--chk:#3a3314}}
+:root[data-theme="dark"]{color-scheme:dark;
+  --bg:#101513;--surface:#181f1c;--ink:#edf2ef;--ink-2:#b6c1bb;--muted:#87928c;--line:#2a332f;--grid:#222a26;
+  --accent:#7cc3a8;--accent-soft:#1e2b25;--warn:#fab219;--warn-ink:#fab219;--crit:#e66767;--none:#5a645f;
+  --good-bg:#16301a;--warn-bg:#33290f;--crit-bg:#3a1c1c;--chk:#3a3314}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;margin:0;padding:0 16px}
+button{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1320px;margin:0 auto;padding-block:22px 48px;display:grid;gap:16px}
+h1,h2,h3{margin:0;text-wrap:balance}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.top h1{font-size:24px;font-weight:700;letter-spacing:-.01em;margin-top:2px}
+.status{margin:0;font-size:15px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:4px 14px}
+.status strong{color:var(--ink);font-weight:600}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;align-items:start}
+@media (max-width:980px){.layout{grid-template-columns:1fr}}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:10px;min-width:0}
+.stagehead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{font-size:12px;background:none;border:0;padding:6px 11px;color:var(--ink-2);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
+.sheets{display:flex;flex-wrap:wrap;gap:6px}
+.sheets button{font-size:12px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;cursor:pointer;color:var(--ink-2)}
+.sheets button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);font-weight:600}
+.sheets button .n{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:4px}
+.viewctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.viewctl select{font:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:5px 8px}
+.view{position:relative;height:min(74vh,820px);min-height:400px;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+#v3d{background:#15191c}
+#v3d canvas{display:block;width:100%;height:100%;touch-action:none}
+#vsheet{background:#fff;cursor:grab;touch-action:none}
+#vsheet.drag{cursor:grabbing} #vsheet.placing{cursor:crosshair}
+#board{position:absolute;left:0;top:0;transform-origin:0 0}
+#board img{display:block;user-select:none;-webkit-user-drag:none;max-width:none}
+#board svg{position:absolute;inset:0;overflow:visible}
+.pin{cursor:pointer}
+.pin circle{stroke:#fff;stroke-width:3}
+.pin text{font:700 15px var(--sans);fill:#fff;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.pin.sel circle{stroke:#16211c;stroke-width:5}
+.pin.approx circle{stroke-dasharray:5 4}
+.overlay{position:absolute;left:10px;right:10px;top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;pointer-events:none}
+.overlay>*{pointer-events:auto}
+.tool{background:rgba(22,33,28,.86);color:#fff;border:0;border-radius:6px;padding:6px 10px;font:600 12px var(--sans);display:inline-flex;align-items:center;gap:8px}
+button.tool{cursor:pointer}
+.tool input[type=range]{width:120px;accent-color:#7cc3a8}
+.tool .cm{background:none;border:0;color:#c9d1cc;font:600 12px var(--sans);padding:2px 6px;border-radius:4px;cursor:pointer}
+.tool .cm[aria-pressed="true"]{background:#7cc3a8;color:#16211c}
+.thleg{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px} .thleg .g{width:140px;height:9px;border-radius:3px;background:linear-gradient(90deg,#000004,#1b0c41,#4a0c6b,#781c6d,#a52c60,#cf4446,#ed6925,#fb9b06,#fcffa4)}
+.tool input[type=number]{width:52px;font:600 12px var(--mono);background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:4px;padding:1px 4px}
+#thread{font-family:var(--mono);min-width:13ch}
+.frames{display:flex;flex-wrap:wrap;gap:6px}
+.frames button{font:500 11px var(--mono);border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 9px;cursor:pointer;color:var(--ink-2)}
+.frames button:hover{border-color:var(--accent);color:var(--accent)}
+.devleg{display:inline-flex;align-items:center;gap:6px} .devleg .g{width:120px;height:9px;border-radius:3px;background:linear-gradient(90deg,#2a78d6,#f0efec,#e34948)}
+.bottom{top:auto;bottom:10px}
+.banner{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:var(--accent);color:#fff;padding:8px 14px;border-radius:8px;font-weight:600;font-size:13px;display:flex;gap:10px;align-items:center;z-index:3;max-width:calc(100% - 20px)}
+.banner button{background:rgba(255,255,255,.18);border:0;border-radius:5px;padding:3px 8px;color:#fff;cursor:pointer;font-size:12px}
+.msg{position:absolute;inset:0;display:grid;place-items:center;color:#c9d1cc;font-size:14px;text-align:center;padding:16px;pointer-events:none}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:11px;height:11px;border-radius:50%;display:inline-block}
+.legend .hint{color:var(--muted);margin-left:auto}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:14px;align-content:start;min-width:0;max-height:calc(74vh + 120px);overflow:auto}
+.panel h2{font-size:18px}
+.panel h3{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.sub{color:var(--ink-2);font-size:13px;margin-top:2px}
+.back{justify-self:start;background:none;border:0;padding:0;color:var(--accent);font-size:13px;font-weight:500;cursor:pointer}
+.rows{display:grid}
+.row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px 10px;padding:9px 6px;border:0;border-top:1px solid var(--grid);background:none;text-align:left;cursor:pointer;width:100%}
+.row:first-child{border-top:0}
+.row:hover{background:var(--accent-soft)}
+.row .name{font-weight:500}
+.row .meta{font-size:12px;color:var(--muted);grid-column:2/-1}
+.badge{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px;flex:none}
+.hi{background:var(--good)} .md{background:var(--warn)} .lo{background:var(--crit)} .na{background:var(--none)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.pill.hi{color:var(--good);background:var(--good-bg)} .pill.md{color:var(--warn-ink);background:var(--warn-bg)} .pill.lo{color:var(--crit);background:var(--crit-bg)}
+.pill.open{color:var(--muted);background:var(--grid)} .pill.confirmed{color:var(--good);background:var(--good-bg)} .pill.revise{color:var(--warn-ink);background:var(--warn-bg)}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.actions{display:flex;flex-wrap:wrap;gap:6px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink)}
+.btn:hover{border-color:var(--accent)} .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn:disabled{opacity:.5;cursor:default}
+.thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.thumbs button{padding:0;border:0;background:none;cursor:zoom-in}
+.thumbs img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px}
+.thumbs figcaption{font:10px var(--mono);color:var(--muted);text-align:center}
+.thumbs figure{margin:0}
+dl{margin:0;display:grid;gap:3px} dt{font-weight:600;font-size:12px;color:var(--muted);margin-top:6px} dd{margin:0}
+.chk{background:var(--chk);padding:2px 6px;border-radius:3px}
+textarea{width:100%;min-height:70px;font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface);color:var(--ink);resize:vertical}
+.small{font-size:12px;color:var(--muted)}
+details summary{cursor:pointer;color:var(--ink-2);font-size:13px}
+ul.plain,ol.plain{margin:6px 0 0;padding-left:18px;display:grid;gap:4px;font-size:13px;color:var(--ink-2)}
+#lb{position:fixed;inset:0;background:rgba(10,12,14,.9);display:grid;place-items:center;padding:16px;z-index:20;cursor:zoom-out}
+#lb img{max-width:min(960px,100%);max-height:84vh} #lb p{color:#ddd;margin:8px 0 0;text-align:center;font-family:var(--mono);font-size:12px}
+.about{max-width:80ch;font-size:13px;color:var(--ink-2)}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Centre Furnace Mansion · State College, PA</div>
+    <h1>Thermal twin</h1>
+  </header>
+  <p class="status" id="status">Loading…</p>
+  <main class="layout">
+    <section class="stage" aria-label="Building views">
+      <div class="stagehead">
+        <div class="seg" id="tabs" role="group" aria-label="View">
+          <button type="button" data-t="3d">3D scan</button><button type="button" data-t="plan">Plans</button><button type="button" data-t="elev">Elevations</button><button type="button" data-t="section">Sections</button>
+        </div>
+        <div class="viewctl"><label for="colorby">Color pins by</label>
+          <select id="colorby"><option value="conf">Confidence</option><option value="triage">Triage status</option></select></div>
+      </div>
+      <div class="sheets" id="sheets" hidden></div>
+      <div class="view" id="v3d">
+        <canvas id="c3d" aria-label="3D point cloud of the Mansion with thermal pins"></canvas>
+        <div class="msg" id="msg3d">Loading scan…</div>
+        <div class="tool" id="detail3d" hidden style="position:absolute;right:10px;top:52px;pointer-events:none"></div>
+        <div class="overlay">
+          <label class="tool" for="cut">Cut height <input id="cut" type="range" min="-9" max="7" step="0.05" value="7"><span id="cutv" style="font-family:var(--mono)">off</span></label>
+          <button class="tool" type="button" data-cut="7">Whole</button>
+          <button class="tool" type="button" data-cut="-0.15">Second</button>
+          <button class="tool" type="button" data-cut="-3.45">First</button>
+          <button class="tool" type="button" data-cut="-6.0">Basement</button>
+          <button class="tool" type="button" id="roofBtn" aria-pressed="true">Drone roof: on</button>
+          <span class="tool" role="group" aria-label="Point color" id="colormode">Color <button type="button" class="cm" data-cm="scan" aria-pressed="true">Scan</button><button type="button" class="cm" data-cm="dev" aria-pressed="false">Wall deviation</button><button type="button" class="cm" data-cm="thermal" aria-pressed="false">Thermal</button></span>
+        </div>
+        <div class="overlay bottom" id="thermalbar" style="bottom:52px" hidden>
+          <span class="tool" role="group" aria-label="Thermal survey date" id="thdate">Survey <button type="button" class="cm" data-d="feb20" aria-pressed="true">Feb 20</button><button type="button" class="cm" data-d="mar27" aria-pressed="false">Mar 27</button></span>
+          <label class="tool">Scale °F <input type="number" id="thlo" step="1" aria-label="Low end of the colour scale, °F"> to <input type="number" id="thhi" step="1" aria-label="High end of the colour scale, °F"></label>
+          <span class="tool" id="thread" aria-live="off">Hover the model</span>
+          <button class="tool" type="button" id="thall" hidden>Show all frames</button>
+        </div>
+        <div class="overlay bottom">
+          <button class="tool" type="button" id="reset3d">Reset view</button>
+          <label class="tool" for="psize">Point size <input id="psize" type="range" min="0.5" max="4" step="0.1" value="1.2"></label>
+          <button class="tool" type="button" id="mkBtn" aria-pressed="true">Markers: on</button>
+          <label class="tool" for="mksize">Marker size <input id="mksize" type="range" min="10" max="48" step="1" value="22"></label>
+        </div>
+      </div>
+      <div class="view" id="vsheet" hidden>
+        <div id="board"><img id="sheetimg" alt=""><svg id="pins" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        <div class="msg" id="msgsheet" style="color:var(--muted)"></div>
+        <div class="overlay bottom" style="justify-content:flex-end">
+          <button class="tool" type="button" id="zin" aria-label="Zoom in">+</button><button class="tool" type="button" id="zout" aria-label="Zoom out">−</button><button class="tool" type="button" id="fit">Fit</button>
+        </div>
+      </div>
+      <div class="banner" id="banner" hidden><span id="bannertxt"></span><button type="button" id="cancelplace">Cancel</button></div>
+      <div class="legend" id="legend"></div>
+    </section>
+    <aside class="panel" id="panel" aria-live="polite"></aside>
+  </main>
+  <details class="about">
+    <summary>About this twin</summary>
+    <p>This combines the March 23, 2026 laser scan (Z+F FlexScan 22) with the February 20 and March 27 FLIR E50 thermal surveys, both by Shayla Hines (Penn State AE). The thermal findings are an AI-assisted first pass for Shayla to triage. Pins marked with a dashed ring were placed by Claude from the order of the photos and still need confirming. Unplaced groups are waiting for Shayla to pin them. This shared copy is a read-only snapshot taken 2026-09-25; pins and notes are edited in the team's working copy.</p>
+    <p>The roof in the 3D view comes from Shayla's drone video and photos (Feb 20, 2026), turned into a 3D model with Apple Object Capture and registered to the laser scan. Diamond markers show where each roof photo was aimed, accurate to about 0.5–1 m.</p>
+    <p>“Thermal” in the 3D view drapes the FLIR images onto the scan: 36 exterior images from 10 groups and 20 room images: the coat room (groups J and O) and the Hearth Room stove corner (groups I and L), each lined up with the laser scan by Claude from the camera's built-in visible photo or from window and vent outlines. Where the pale masonry scanned sparsely, the image sits on a simple measured model of the walls. Temperatures use the camera's settings (emissivity 0.95, reflected temperature 68 °F). Room images sit on the full-resolution scan and use their own colour scale, since rooms read 20–30 °F warmer than the outside walls. The cold cavity (N), groups A and M, and the coat-room ceiling-patch frames are not draped yet.</p>
+    <p>The 3D view is a 10-million-point copy of the full 506-million-point scan, resampled to even density (denser on the building than on the ground) with scanner edge streaks filtered out. It loads a quarter first, then adds detail; phones get the quarter only. The drawings are at 1 cm per pixel (1:100). Orientation follows the building's walls, not true north.</p>
+  </details>
+</div>
+<div id="lb" hidden><div><img alt=""><p></p></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+// Static copy: every data file is AES-GCM encrypted; the key comes from the password gate.
+let KEY = null;
+async function decryptBuf(buf){ const u = new Uint8Array(buf); return crypto.subtle.decrypt({name:"AES-GCM", iv:u.slice(0,12)}, KEY, u.slice(12)); }
+async function grab(path, kind){
+  const r = await fetch(path + ".enc"); if (!r.ok) throw new Error(`HTTP ${r.status} for ${path}`);
+  const plain = await decryptBuf(await r.arrayBuffer());
+  if (kind === "json") return JSON.parse(new TextDecoder().decode(plain));
+  if (kind === "blob") return new Blob([plain], {type: path.endsWith(".png") ? "image/png" : "image/jpeg"});
+  return plain;
+}
+function unpng(buf){
+  const d = new DataView(buf), u8 = new Uint8Array(buf); let p = 8, W = 0, H = 0; const idat = [];
+  while (p < u8.length){ const len = d.getUint32(p), t = String.fromCharCode(...u8.subarray(p+4,p+8));
+    if (t === "IHDR"){ W = d.getUint32(p+8); H = d.getUint32(p+12); } else if (t === "IDAT") idat.push(u8.subarray(p+8,p+8+len)); p += 12+len; }
+  let n = 0; for (const c of idat) n += c.length; const z = new Uint8Array(n); let o = 0; for (const c of idat){ z.set(c,o); o += c.length; }
+  const raw = pako.inflate(z), out = new Uint8Array(W*H);
+  for (let r=0;r<H;r++){ if (raw[r*(W+1)] !== 0) throw new Error("unexpected PNG filter"); out.set(raw.subarray(r*(W+1)+1,(r+1)*(W+1)), r*W); }
+  return out.buffer;
+}
+
+// ---------- state ----------
+const S = { data:null, geom:null, imgs:{}, place:{}, tri:{}, tab:"3d", sheet:{plan:"plan_first", elev:"elev_left", section:"section_B"},
+  sel:null, placing:null, colorby:"conf", db:null, canWrite:null };
+try { const t = localStorage.getItem("cfm-twin-tab"); if (t) S.tab = t; } catch(e){}
+const SHEETS = {plan:[["plan_basement","Basement"],["plan_first","First floor"],["plan_second","Second floor"]],
+  elev:[["elev_front","Front"],["elev_right","Right"],["elev_rear","Rear"],["elev_left","Left"]],
+  section:[["section_A","A–A"],["section_B","B–B"],["section_C","C–C (flue)"],["section_D","D–D (coat room, Hearth Room)"],["section_E","E–E"]]};
+const SHEET_NAME = Object.fromEntries(Object.values(SHEETS).flat().map(([k,l]) => [k, l]));
+const confCls = c => { c = (c||"").split(";")[0]; return c.startsWith("High") ? "hi" : (c.startsWith("Medium") || c.startsWith("Low–Medium")) ? "md" : "lo"; };
+const COLORS = () => { const cs = getComputedStyle(document.documentElement); return {hi:cs.getPropertyValue("--good").trim(), md:cs.getPropertyValue("--warn").trim(), lo:cs.getPropertyValue("--crit").trim(), na:cs.getPropertyValue("--none").trim()}; };
+const triStatus = g => (S.tri[g] && S.tri[g].status) || "open";
+const TRI_LABEL = {open:"Not triaged", confirmed:"Confirmed", revise:"Needs change"};
+function pinCls(g){ if (S.colorby === "triage"){ const t = triStatus(g); return t === "confirmed" ? "hi" : t === "revise" ? "md" : "na"; } return confCls(S.data.groups.find(x => x.id === g).conf); }
+const group = id => S.data.groups.find(g => g.id === id);
+const roofPoi = id => S.data.roof && S.data.roof.pois.find(r => r.id === id);
+let ROOFIMG = null;
+
+// ---------- sheet <-> building coordinates ----------
+// Walls used to give elevation/section clicks a depth (building axes, metres).
+const WALL = {front:-3.95, right:10.6, secA:0.0, secB:7.0};
+function sheetToWorld(name, X, Y){
+  const G = S.geom, g = G.sheets[name], k = g.kind, R = G.R, col = X - g.L + g.x0, row = Y - g.T + g.y0, z = G.Z1 - row*R;
+  if (k.kind === "plan") return {u:G.U0+col*R, v:G.V1-row*R, z:k.floor+1.2};
+  if (k.kind === "section"){ const ax = k.axis || (k.id === "A" ? "v" : "u"), val = k.val ?? (k.id === "A" ? WALL.secA : WALL.secB);
+    return ax === "v" ? {u:G.U0+col*R, v:val, z} : {u:val, v:G.V0+col*R, z}; }
+  if (k.side === "front") return {u:G.U0+col*R, v:WALL.front, z};
+  if (k.side === "rear"){ const u = G.U0+(G.Wu-1-col)*R; return {u, v:u>5.2?14.7:7.2, z}; }
+  if (k.side === "left"){ const v = G.V0+(G.Wv-1-col)*R; return {u:v>7.2?1.6:-4.2, v, z}; }
+  return {u:WALL.right, v:G.V0+col*R, z};
+}
+function worldToSheet(name, w){
+  const G = S.geom, g = G.sheets[name], k = g.kind, R = G.R; let col, row = (G.Z1 - w.z)/R;
+  if (k.kind === "plan"){ col = (w.u-G.U0)/R; row = (G.V1-w.v)/R; }
+  else if (k.kind === "section") col = (k.axis || (k.id === "A" ? "v" : "u")) === "v" ? (w.u-G.U0)/R : (w.v-G.V0)/R;
+  else if (k.side === "front") col = (w.u-G.U0)/R;
+  else if (k.side === "rear") col = G.Wu-1-(w.u-G.U0)/R;
+  else if (k.side === "left") col = G.Wv-1-(w.v-G.V0)/R;
+  else col = (w.v-G.V0)/R;
+  return {X: col + g.L - g.x0, Y: row + g.T - g.y0};
+}
+
+// ---------- 3D ----------
+let three = null;
+function init3d(){
+  const canvas = $("c3d"), renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.localClippingEnabled = true;
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x15191c);
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 3000); camera.up.set(0,0,1);
+  const controls = new THREE.OrbitControls(camera, canvas); controls.enableDamping = true;
+  const cutPlane = new THREE.Plane(new THREE.Vector3(0,0,-1), 1e3);
+  // Points are sized in metres (about 1.5x the cloud's point spacing) so surfaces close up read as solid, with a
+  // 1.5 px floor so far walls don't vanish. The slider scales the world size.
+  const mat = new THREE.PointsMaterial({size:0.026, sizeAttenuation:true, vertexColors:true, clippingPlanes:[cutPlane]});
+  mat.onBeforeCompile = sh => { sh.uniforms.minPx = {value: 1.5 * Math.min(devicePixelRatio, 2)};
+    sh.vertexShader = "uniform float minPx;\n" + sh.vertexShader.replace("#include <fog_vertex>", "gl_PointSize = max(gl_PointSize, minPx);\n#include <fog_vertex>"); };
+  const pins = new THREE.Group(); scene.add(pins);
+  three = {renderer, scene, camera, controls, mat, cutPlane, pins, ctr:[0,0,0], clouds:[], devColors:null};
+  function resize(){ const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); }
+  new ResizeObserver(() => { resize(); rescalePins(); }).observe(canvas); resize();
+  const ray = new THREE.Raycaster(); let down = null;
+  canvas.addEventListener("pointerdown", e => { down = {x:e.clientX, y:e.clientY}; });
+  canvas.addEventListener("pointerup", e => {
+    if (!down || Math.hypot(e.clientX-down.x, e.clientY-down.y) > 5) return;
+    const r = canvas.getBoundingClientRect(), m = new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+    ray.setFromCamera(m, camera); const hit = S.mk.on ? ray.intersectObjects(pins.children)[0] : null;
+    if (hit){ select(hit.object.userData.g); return; }
+    if (three.th && three.th.group.visible){ const th = ray.intersectObjects(three.th.group.children)[0]; if (th && th.object.userData.g) select(th.object.userData.g); }
+  });
+  canvas.addEventListener("pointermove", e => { if (S.cm === "thermal") thermalHover(e); });
+  canvas.addEventListener("pointerleave", () => { if (S.cm === "thermal") $("thread").textContent = "Hover the model"; });
+  (function loop(){ requestAnimationFrame(loop); if (!$("v3d").hidden){ controls.update(); renderer.render(scene, camera); } })();
+}
+async function load3d(){
+  // Chunk 0 is an even quarter of the cloud (base view); the rest add detail. Small screens stop at the base.
+  const cl = S.data.cloud, ext = cl.extent; three.ctr = cl.center; let loaded = 0;
+  const light = Math.min(screen.width, screen.height) < 700 || (navigator.deviceMemory && navigator.deviceMemory <= 4);
+  const chunks = light ? cl.chunks.slice(0, 1) : cl.chunks;
+  for (const [ci, ch] of chunks.entries()){
+    if (ci === 0) $("msg3d").textContent = "Loading scan…";
+    else { $("detail3d").hidden = false; $("detail3d").textContent = `Adding detail ${ci}/${chunks.length-1}…`; }
+    const buf = unpng(await grab(ch.file)), n = ch.count, pos = new Float32Array(n*3); let rgb;
+    if (ch.fmt === "planes"){
+      const b = new Uint8Array(buf); rgb = new Uint8Array(n*3);
+      for (let a=0;a<3;a++){ const hi = a*n, lo = (3+a)*n, c = (6+a)*n;
+        for (let i=0;i<n;i++){ pos[3*i+a] = (((b[hi+i] << 8) | b[lo+i])/65535*2-1)*ext[a]; rgb[3*i+a] = b[c+i]; } }
+    } else {
+      const q = new Uint16Array(buf, 0, n*3); rgb = new Uint8Array(buf, n*6, n*3);
+      for (let i=0;i<n*3;i++) pos[i] = (q[i]/65535*2-1)*ext[i%3];
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos,3)); g.setAttribute("color", new THREE.BufferAttribute(rgb,3,true));
+    three.scene.add(new THREE.Points(g, three.mat)); three.clouds.push({g, rgb, n, dev: ch.dev}); loaded += n;
+    if (ci === 0){ $("msg3d").hidden = true; view3d(); draw3dPins(); if (S.data.roof) loadRoof().catch(e => console.error("[twin] roof layer", e)); }
+    else if (S.cm !== "scan"){ if (S.cm === "dev") three.devColors = null; await setColorMode(S.cm); }
+  }
+  $("detail3d").textContent = light ? `Light view: ${(loaded/1e6).toFixed(1)}M points` : `${(loaded/1e6).toFixed(1)}M points`;
+  setTimeout(() => { $("detail3d").hidden = true; }, 2500);
+}
+async function loadRoof(){
+  const L = S.data.roof.layer, buf = unpng(await grab(L.file)), n = L.count, q = new Uint16Array(buf, 0, n*3), rgb = new Uint8Array(buf, n*6, n*3), pos = new Float32Array(n*3);
+  for (let i=0;i<n*3;i++){ const a = i%3; pos[i] = (q[i]/65535*2-1)*L.extent[a] + L.center[a] - three.ctr[a]; }
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos,3)); g.setAttribute("color", new THREE.BufferAttribute(rgb,3,true));
+  const pts = new THREE.Points(g, three.mat); three.scene.add(pts); three.roof = {pts, g, rgb, n, dim:null};
+  if (S.cm !== "scan") setColorMode(S.cm);
+}
+document.getElementById("roofBtn").addEventListener("click", e => { if (!three.roof) return; const on = !three.roof.pts.visible; three.roof.pts.visible = on;
+  e.target.setAttribute("aria-pressed", on); e.target.textContent = "Drone roof: " + (on ? "on" : "off"); });
+function view3d(){ const c = three.camera, R = 34; if (c.fov !== 50){ c.fov = 50; c.updateProjectionMatrix(); } three.controls.target.set(0,0,-1); c.position.set(-R*0.55, -R*0.85, R*0.45); three.controls.update(); }
+function setCut(h){
+  $("cut").value = h; three.cutPlane.constant = (+h >= 6.95) ? 1e3 : (+h - three.ctr[2]);
+  $("cutv").textContent = (+h >= 6.95) ? "off" : `${(+h + 4.65 >= 0 ? "+" : "−")}${Math.abs(+h + 4.65).toFixed(2)} m`;
+}
+// Markers are sized in screen pixels (not a fraction of the view), so they stay small on big screens.
+S.mk = {on:true, px:22};
+try { const m = JSON.parse(localStorage.getItem("cfm-twin-markers") || "null"); if (m) S.mk = {on: m.on !== false, px: Math.min(48, Math.max(10, +m.px || 22))}; } catch(e){}
+function saveMk(){ try { localStorage.setItem("cfm-twin-markers", JSON.stringify(S.mk)); } catch(e){} }
+// sizeAttenuation:false sprites scale in viewport-height units; 0.6 calibrates that to on-screen pixels for these textures
+function mkScale(){ const h = (three && three.renderer.domElement.clientHeight) || 700; return S.mk.px / h * 0.6 * 2.2; }
+function rescalePins(){ if (!three) return; const k = mkScale(); for (const s of three.pins.children) s.scale.set(k * (s.userData.roof ? 0.93 : 1), k * (s.userData.roof ? 0.93 : 1), 1); three.pins.visible = S.mk.on; }
+const spriteTex = {};
+function pinTexture(cls, letter, sel){
+  const key = cls + letter + (sel ? "s" : ""); if (spriteTex[key]) return spriteTex[key];
+  const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d");
+  x.beginPath(); x.arc(64,64,54,0,Math.PI*2); x.fillStyle = COLORS()[cls]; x.fill(); x.lineWidth = sel ? 14 : 8; x.strokeStyle = sel ? "#16211c" : "#fff"; x.stroke();
+  x.fillStyle = "#fff"; x.font = "bold 64px Public Sans, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(letter, 64, 68);
+  return (spriteTex[key] = new THREE.CanvasTexture(c));
+}
+const roofTex = {};
+function roofTexture(cls, label, sel){
+  const key = cls + label + (sel ? "s" : ""); if (roofTex[key]) return roofTex[key];
+  const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d");
+  x.translate(64,64); x.rotate(Math.PI/4); x.fillStyle = COLORS()[cls]; x.fillRect(-38,-38,76,76); x.lineWidth = sel ? 12 : 7; x.strokeStyle = sel ? "#16211c" : "#fff"; x.strokeRect(-38,-38,76,76);
+  x.setTransform(1,0,0,1,0,0); x.fillStyle = "#fff"; x.font = (label.length > 2 ? "bold 34px" : "bold 40px") + " Public Sans, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(label, 64, 68);
+  return (roofTex[key] = new THREE.CanvasTexture(c));
+}
+function draw3dPins(){
+  if (!three) return; three.pins.clear(); const [cu,cv,cz] = three.ctr;
+  for (const r of (S.data.roof ? S.data.roof.pois : [])){
+    if (!r.pos) continue;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:roofTexture(r.conf, r.id, S.sel === r.id), depthTest:false, sizeAttenuation:false}));
+    sp.position.set(r.pos[0]-cu, r.pos[1]-cv, r.pos[2]-cz); sp.userData.g = r.id; sp.userData.roof = true; sp.renderOrder = 11; three.pins.add(sp);
+  }
+  for (const [g, p] of Object.entries(S.place)){
+    if (!group(g)) continue;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({map:pinTexture(pinCls(g), g, S.sel === g), depthTest:false, sizeAttenuation:false}));
+    s.position.set(p.wu-cu, p.wv-cv, p.wz-cz); s.userData.g = g; s.renderOrder = 10; three.pins.add(s);
+  }
+  rescalePins();
+}
+
+// ---------- wall deviation coloring ----------
+// dev codes per point: 0 off-wall, 1 left-out cell (shutter/opening/trim), 2..254 = -40..+40 mm outward
+S.cm = "scan";
+function divColor(t){ // t in [-1,1]
+  const mid = [0xf0,0xef,0xec], b = t < 0 ? [0x2a,0x78,0xd6] : [0xe3,0x49,0x48], k = Math.abs(t);
+  return mid.map((c,i) => Math.round(c + (b[i]-c)*k));
+}
+async function buildDevColors(){
+  $("msg3d").hidden = false; $("msg3d").textContent = "Loading wall deviation…";
+  const out = [];
+  for (const c of three.clouds){
+    const code = new Uint8Array(unpng(await grab(c.dev)), 0, c.n), col = new Uint8Array(c.n*3);
+    for (let i=0;i<c.n;i++){
+      const k = code[i]; let r, g, b;
+      if (k === 0){ const y = (c.rgb[3*i]*0.3 + c.rgb[3*i+1]*0.59 + c.rgb[3*i+2]*0.11) * 0.45 + 40; r = g = b = y; }
+      else if (k === 1){ r = 150; g = 156; b = 152; }
+      else { [r, g, b] = divColor(((k - 2) / 252) * 2 - 1); }
+      col[3*i] = r; col[3*i+1] = g; col[3*i+2] = b;
+    }
+    out.push(col);
+  }
+  $("msg3d").hidden = true; return out;
+}
+function dimOf(rgb, n){ const d = new Uint8Array(n*3); for (let i=0;i<n;i++){ const y = (rgb[3*i]*0.3 + rgb[3*i+1]*0.59 + rgb[3*i+2]*0.11)*0.45 + 40; d[3*i] = d[3*i+1] = d[3*i+2] = y; } return d; }
+async function setColorMode(m){
+  if (!three || !three.clouds.length) return;
+  if (m === "dev" && !three.devColors){ try { three.devColors = await buildDevColors(); } catch(e){ $("msg3d").textContent = "Could not load wall deviation: " + e.message; return; } }
+  if (m === "thermal"){ try { await loadThermal(); } catch(e){ console.error("[twin] thermal", e); $("msg3d").hidden = false; $("msg3d").textContent = "Could not load the thermal layer: " + e.message; return; } }
+  S.cm = m;
+  three.clouds.forEach((c, i) => { if (m === "thermal" && !c.dim) c.dim = dimOf(c.rgb, c.n);
+    c.g.setAttribute("color", new THREE.BufferAttribute(m === "dev" ? three.devColors[i] : m === "thermal" ? c.dim : c.rgb, 3, true)); });
+  if (three.roof){ const r = three.roof; if (m !== "scan" && !r.dim) r.dim = dimOf(r.rgb, r.n);
+    r.g.setAttribute("color", new THREE.BufferAttribute(m === "scan" ? r.rgb : r.dim, 3, true)); }
+  if (three.th) three.th.group.visible = m === "thermal";
+  $("thermalbar").hidden = m !== "thermal";
+  for (const b of document.querySelectorAll("#colormode .cm")) b.setAttribute("aria-pressed", b.dataset.cm === m);
+  legend();
+}
+
+// ---------- thermal layer: FLIR frames draped on the scan ----------
+// Each frame is a small mesh (121x91 vertex grid on the scan / wall shell) textured with its temperature image.
+const INFERNO = [[0,0,4],[27,12,65],[74,12,107],[120,28,109],[165,44,96],[207,68,70],[237,105,37],[251,155,6],[252,255,164]];
+function inferno(t){ t = Math.min(1, Math.max(0, t)) * 8; const i = Math.min(7, Math.floor(t)), f = t - i, a = INFERNO[i], b = INFERNO[i+1]; return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f]; }
+S.thDate = "feb20";
+async function loadThermal(){
+  if (three.th) return;
+  $("msg3d").hidden = false; $("msg3d").textContent = "Loading thermal images…";
+  const L = S.thL || await grab("thermal_layer.json", "json"), bufs = {}; S.thL = L;
+  for (const f of new Set(L.frames.map(x => x.file))) bufs[f] = unpng(await grab(f));
+  const group = new THREE.Group(); three.scene.add(group); const ext = S.data.cloud.extent, TW = L.tw, TH = L.th;
+  const order = [...L.frames].sort((a, b) => (a.manual - b.manual) || (b.dist - a.dist));   // hand-registered, then nearer (sharper) frames draw on top
+  const meshes = [];
+  order.forEach((f, rank) => {
+    const buf = bufs[f.file], nv = f.gw*f.gh, q = new Uint16Array(buf, f.offset, nv*3), ok = new Uint8Array(buf, f.offset + nv*6, nv);
+    const temps = new Int16Array(buf.slice(f.offset + f.toff, f.offset + f.toff + TW*TH*2)), pos = new Float32Array(nv*3), uv = new Float32Array(nv*2), dist = new Float32Array(nv);
+    const lift = 0.03 + 0.012*rank;
+    for (let k=0;k<nv;k++){
+      let x = (q[3*k]/65535*2-1)*ext[0], y = (q[3*k+1]/65535*2-1)*ext[1], z = (q[3*k+2]/65535*2-1)*ext[2];
+      const dx = f.cam[0]-x, dy = f.cam[1]-y, dz = f.cam[2]-z, d = Math.hypot(dx, dy, dz) || 1; dist[k] = d;
+      pos[3*k] = x + dx/d*lift; pos[3*k+1] = y + dy/d*lift; pos[3*k+2] = z + dz/d*lift;
+      const c = k % f.gw, r = Math.floor(k / f.gw); uv[2*k] = (Math.min(2*c, TW-1)+0.5)/TW; uv[2*k+1] = (Math.min(2*r, TH-1)+0.5)/TH;
+    }
+    const idx = [];
+    for (let r=0;r<f.gh-1;r++) for (let c=0;c<f.gw-1;c++){
+      const a = r*f.gw+c, b = a+1, d = a+f.gw, e = d+1; if (!(ok[a] && ok[b] && ok[d] && ok[e])) continue;
+      const lo = Math.min(dist[a],dist[b],dist[d],dist[e]), hi = Math.max(dist[a],dist[b],dist[d],dist[e]); if (hi - lo > 0.3 + 0.04*lo) continue;
+      idx.push(a, d, b, b, d, e);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); g.setIndex(idx);
+    const tex = new THREE.DataTexture(new Uint8Array(TW*TH*4), TW, TH, THREE.RGBAFormat); tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.flipY = false;
+    const mat = new THREE.MeshBasicMaterial({map:tex, side:THREE.DoubleSide, clippingPlanes:[three.cutPlane], polygonOffset:true, polygonOffsetFactor:-1-rank*0.05, polygonOffsetUnits:-4-rank});
+    const mesh = new THREE.Mesh(g, mat); mesh.renderOrder = 2 + rank; mesh.userData = {g: f.group, f, temps, tex}; group.add(mesh); meshes.push(mesh);
+  });
+  three.th = {L, group, meshes}; group.visible = false;
+  $("msg3d").hidden = true; setThermalDate(S.thDate, true);
+}
+function paintThermal(){
+  const th = three.th, TW = th.L.tw, TH = th.L.th;
+  for (const m of th.meshes){
+    m.visible = m.userData.f.date === S.thDate && (!S.thSolo || m.userData.f.id === S.thSolo); if (!m.visible) continue;
+    const [lo, hi] = m.userData.f.interior ? th.rangeIn : th.range, t = m.userData.temps, px = m.userData.tex.image.data;
+    for (let i=0;i<TW*TH;i++){ const c = inferno((t[i]/100 - lo)/(hi - lo)); px[4*i] = c[0]; px[4*i+1] = c[1]; px[4*i+2] = c[2]; px[4*i+3] = 255; }
+    m.userData.tex.needsUpdate = true;
+  }
+  legend();
+}
+function setThermalDate(d, force){
+  if (!three.th || (d === S.thDate && !force)) { S.thDate = d; }
+  if (d !== S.thDate) S.thSolo = null; $("thall").hidden = !S.thSolo;
+  S.thDate = d; three.th.range = [...three.th.L.range[d]]; three.th.rangeIn = [...(three.th.L.range[d + "_in"] || three.th.L.range[d])]; $("thlo").value = three.th.range[0]; $("thhi").value = three.th.range[1];
+  for (const b of document.querySelectorAll("#thdate .cm")) b.setAttribute("aria-pressed", b.dataset.d === d);
+  paintThermal();
+}
+$("thdate").addEventListener("click", e => { const b = e.target.closest(".cm"); if (b && three.th) setThermalDate(b.dataset.d); });
+for (const id of ["thlo", "thhi"]) $(id).addEventListener("change", () => { if (!three.th) return; const lo = +$("thlo").value, hi = +$("thhi").value; if (hi > lo){ if (S.thScopeIn) three.th.rangeIn = [lo, hi]; else three.th.range = [lo, hi]; paintThermal(); } });
+$("thall").addEventListener("click", () => { S.thSolo = null; S.thScopeIn = false; $("thlo").value = three.th.range[0]; $("thhi").value = three.th.range[1]; $("thall").hidden = true; paintThermal(); });
+let hoverT = 0;
+function thermalHover(e){
+  if (!three.th || performance.now() - hoverT < 40) return; hoverT = performance.now();
+  const canvas = $("c3d"), r = canvas.getBoundingClientRect(), ray = new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1), three.camera);
+  const hit = ray.intersectObjects(three.th.meshes.filter(m => m.visible))[0];
+  if (!hit || !hit.uv){ $("thread").textContent = "Hover the model"; return; }
+  const u = hit.object.userData, TW = three.th.L.tw, TH = three.th.L.th, x = Math.min(TW-1, Math.floor(hit.uv.x*TW)), y = Math.min(TH-1, Math.floor(hit.uv.y*TH));
+  $("thread").textContent = `${(u.temps[y*TW+x]/100).toFixed(1)} °F · ${u.f.id}${u.g ? " · Group " + u.g : ""}`;
+}
+async function viewFrom(id){
+  setTab("3d"); await setColorMode("thermal"); if (!three.th) return;
+  const f = three.th.L.frames.find(x => x.id === id); if (!f) return; S.thSolo = null; setThermalDate(f.date); S.thSolo = id; $("thall").hidden = false;
+  S.thScopeIn = !!f.interior; const r = f.interior ? three.th.rangeIn : three.th.range; $("thlo").value = r[0]; $("thhi").value = r[1];
+  paintThermal(); setCut(f.interior ? -4.75 : 7);
+  const c = three.camera, R = f.R, dir = new THREE.Vector3(R[2][0], R[2][1], R[2][2]);
+  c.position.set(f.cam[0], f.cam[1], f.cam[2]); c.fov = 2*Math.atan(90/f.fy)*180/Math.PI*1.08; c.updateProjectionMatrix();
+  three.controls.target.copy(c.position.clone().add(dir.multiplyScalar(Math.max(3, f.dist)))); three.controls.update();
+  $("thread").textContent = `Viewing from ${f.id}'s camera`;
+}
+document.getElementById("colormode").addEventListener("click", e => { const b = e.target.closest(".cm"); if (b) setColorMode(b.dataset.cm); });
+
+// ---------- sheets ----------
+const V = {s:1, x:0, y:0};
+function applyBoard(){
+  $("board").style.transform = `translate(${V.x}px,${V.y}px) scale(${V.s})`;
+  const k = (S.mk.px / 32) / V.s; for (const el of $("pins").querySelectorAll(".pin")) el.setAttribute("transform", `translate(${el.dataset.x},${el.dataset.y}) scale(${k})`);
+  $("pins").style.display = S.mk.on ? "" : "none";
+}
+function fitBoard(){ const img = $("sheetimg"), el = $("vsheet"); if (!img.naturalWidth) return;
+  V.s = Math.min(el.clientWidth/img.naturalWidth, el.clientHeight/img.naturalHeight); V.x = (el.clientWidth-img.naturalWidth*V.s)/2; V.y = (el.clientHeight-img.naturalHeight*V.s)/2; applyBoard(); }
+function zoomAt(f, cx, cy){ const ns = Math.min(Math.max(V.s*f, 0.05), 4); V.x = cx-(cx-V.x)*ns/V.s; V.y = cy-(cy-V.y)*ns/V.s; V.s = ns; applyBoard(); }
+const sheetCache = {};
+async function showSheet(name){
+  const g = S.geom.sheets[name], img = $("sheetimg"); $("msgsheet").hidden = false; $("msgsheet").textContent = "Loading sheet…";
+  try {
+    if (!sheetCache[name]) sheetCache[name] = URL.createObjectURL(await grab(g.file, "blob"));
+    await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error("image decode failed")); img.src = sheetCache[name]; });
+    img.alt = g.title; const svg = $("pins"); svg.setAttribute("width", g.W); svg.setAttribute("height", g.H); svg.setAttribute("viewBox", `0 0 ${g.W} ${g.H}`);
+    $("msgsheet").hidden = true; fitBoard(); drawSheetPins();
+  } catch(e){ $("msgsheet").textContent = "Could not load this sheet: " + e.message; }
+}
+function drawSheetPins(){
+  const name = S.sheet[S.tab], svg = $("pins"); if (!name || S.tab === "3d") return; const col = COLORS(); let html = "";
+  for (const [g, p] of Object.entries(S.place)){
+    if (p.sheet !== name || !group(g)) continue; const {X, Y} = worldToSheet(name, {u:p.wu, v:p.wv, z:p.wz});
+    html += `<g class="pin${S.sel===g?" sel":""}${p.approx?" approx":""}" data-g="${esc(g)}" data-x="${X}" data-y="${Y}" tabindex="0" role="button" aria-label="Group ${esc(g)}"><title>Group ${esc(g)}: ${esc(group(g).desc)}</title><circle r="16" fill="${col[pinCls(g)]}"></circle><text>${esc(g)}</text></g>`;
+  }
+  svg.innerHTML = html; applyBoard();
+}
+function initSheet(){
+  const el = $("vsheet"); let drag = null, moved = false; const pts = new Map();
+  el.addEventListener("wheel", e => { e.preventDefault(); const r = el.getBoundingClientRect(); zoomAt(Math.exp(-e.deltaY*0.0015), e.clientX-r.left, e.clientY-r.top); }, {passive:false});
+  el.addEventListener("pointerdown", e => { if (e.target.closest(".overlay,.banner")) return; el.setPointerCapture(e.pointerId); pts.set(e.pointerId, {x:e.clientX, y:e.clientY}); drag = {x:e.clientX, y:e.clientY}; moved = false; el.classList.add("drag"); });
+  el.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return; const prev = pts.get(e.pointerId);
+    if (pts.size === 2){ const [a,b] = [...pts.values()], d0 = Math.hypot(a.x-b.x, a.y-b.y); pts.set(e.pointerId, {x:e.clientX, y:e.clientY}); const [c,d] = [...pts.values()], d1 = Math.hypot(c.x-d.x, c.y-d.y), r = el.getBoundingClientRect(); if (d0 > 0) zoomAt(d1/d0, (c.x+d.x)/2-r.left, (c.y+d.y)/2-r.top); moved = true; return; }
+    V.x += e.clientX-prev.x; V.y += e.clientY-prev.y; pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if (Math.hypot(e.clientX-drag.x, e.clientY-drag.y) > 5) moved = true; applyBoard();
+  });
+  el.addEventListener("pointerup", e => {
+    pts.delete(e.pointerId); if (!pts.size) el.classList.remove("drag"); if (moved) return;
+    const pin = document.elementFromPoint(e.clientX, e.clientY)?.closest?.(".pin");
+    if (S.placing){ const r = el.getBoundingClientRect(); placeAt((e.clientX-r.left-V.x)/V.s, (e.clientY-r.top-V.y)/V.s); return; }
+    if (pin) select(pin.dataset.g);
+  });
+  el.addEventListener("pointercancel", e => { pts.delete(e.pointerId); el.classList.remove("drag"); });
+  $("pins").addEventListener("keydown", e => { const pin = e.target.closest(".pin"); if (pin && (e.key === "Enter" || e.key === " ")){ e.preventDefault(); select(pin.dataset.g); } });
+  const mid = () => [el.clientWidth/2, el.clientHeight/2];
+  $("zin").onclick = () => zoomAt(1.4, ...mid()); $("zout").onclick = () => zoomAt(1/1.4, ...mid()); $("fit").onclick = fitBoard;
+  new ResizeObserver(fitBoard).observe(el);
+}
+
+// ---------- tabs ----------
+function setTab(t){
+  S.tab = t; try { localStorage.setItem("cfm-twin-tab", t); } catch(e){}
+  for (const b of $("tabs").children) b.setAttribute("aria-pressed", b.dataset.t === t);
+  $("v3d").hidden = t !== "3d"; $("vsheet").hidden = t === "3d"; $("sheets").hidden = t === "3d";
+  if (t !== "3d"){
+    const counts = {}; for (const p of Object.values(S.place)) counts[p.sheet] = (counts[p.sheet]||0) + 1;
+    $("sheets").innerHTML = SHEETS[t].map(([k,l]) => `<button type="button" data-s="${k}" aria-pressed="${S.sheet[t]===k}">${l}${counts[k]?`<span class="n">${counts[k]}</span>`:""}</button>`).join("");
+    showSheet(S.sheet[t]);
+  }
+  renderBanner();
+}
+$("tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setTab(b.dataset.t); });
+$("sheets").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.sheet[S.tab] = b.dataset.s; setTab(S.tab); });
+$("colorby").addEventListener("change", e => { S.colorby = e.target.value; refresh(); });
+
+// ---------- selection + panel ----------
+function select(g){ S.sel = g; if (g) history.replaceState(null, "", "#g-" + g); refresh(); $("panel").scrollTop = 0; }
+function locate(g){
+  const p = S.place[g]; if (!p) return;
+  const t = p.sheet.startsWith("plan") ? "plan" : p.sheet.startsWith("elev") ? "elev" : "section"; S.sheet[t] = p.sheet; setTab(t);
+}
+function locate3d(g){
+  const p = S.place[g]; setTab("3d"); if (!p || !three) return; const [cu,cv,cz] = three.ctr, tgt = new THREE.Vector3(p.wu-cu, p.wv-cv, p.wz-cz);
+  const dir = three.camera.position.clone().sub(three.controls.target).normalize(); three.controls.target.copy(tgt); three.camera.position.copy(tgt.clone().add(dir.multiplyScalar(14)));
+  if (p.sheet.startsWith("plan")) setCut(p.wz + 0.3);
+}
+function legend(){
+  const L = S.colorby === "conf" ? [["hi","High"],["md","Medium"],["lo","Low"]] : [["hi","Confirmed"],["md","Needs change"],["na","Not triaged"]];
+  const thl = S.tab === "3d" && S.cm === "thermal" && three && three.th ? `<span class="thleg">${(S.thScopeIn ? three.th.rangeIn : three.th.range)[0]} °F <i class="g"></i> ${(S.thScopeIn ? three.th.rangeIn : three.th.range)[1]} °F</span>${three.th.L.range[S.thDate + "_in"] ? `<span>${S.thScopeIn ? "Room scale" : "Outside scale"}; ${S.thScopeIn ? "outside walls" : "rooms"} use ${(S.thScopeIn ? three.th.range : three.th.rangeIn).join("–")} °F</span>` : ""}<span>Surface temperature, ${S.thDate === "feb20" ? "Feb 20" : "Mar 27"} survey, on the scan (grey)</span>` : "";
+  const dev = thl + (S.tab === "3d" && S.cm === "dev" ? `<span class="devleg">Wall offset from vertical: 40 mm in <i class="g"></i> 40 mm out</span><span><i style="background:#969c98"></i>Shutters, openings, trim</span><span><i style="background:#555"></i>Not a measured wall</span>` : "");
+  $("legend").innerHTML = dev + L.map(([c,l]) => `<span><i class="${c}"></i>${l}</span>`).join("") + `<span><i style="border:2px dashed var(--ink-2);background:none"></i>Placed by Claude, unconfirmed</span>${S.tab==="3d" && S.data.roof ? `<span><i style="background:var(--ink-2)"></i>Letters: thermal photo groups</span><span><i style="border-radius:2px;transform:rotate(45deg);background:var(--ink-2)"></i>R1–R10: roof findings (drone)</span>` : ""}<span class="hint">${S.tab==="3d"?"Click a pin · drag to orbit · use Cut height to see inside":"Click a pin · drag to pan · scroll to zoom"}</span>`;
+}
+function status(){
+  const n = S.data.groups.length, placed = Object.keys(S.place).filter(group).length, t = Object.values(S.tri).filter(x => x && x.status && x.status !== "open").length;
+  const needs = S.data.groups.filter(g => confCls(g.conf) !== "hi" && g.check).length;
+  $("status").innerHTML = `<span><strong>${n}</strong> thermal groups</span><span><strong>${placed}</strong> pinned to the building</span><span><strong>${needs}</strong> with checks for Shayla</span><span><strong>${t}</strong> triaged</span>`;
+}
+function rowHtml(g){
+  const p = S.place[g.id];
+  return `<button type="button" class="row" data-g="${g.id}"><span class="badge ${pinCls(g.id)}">${g.id}</span><span class="name">${esc(g.desc)}</span><span class="pill ${triStatus(g.id)}">${TRI_LABEL[triStatus(g.id)]}</span>
+    <span class="meta">${esc(g.when)} · ${p ? "on " + esc(SHEET_NAME[p.sheet]) + (p.approx ? " (unconfirmed)" : "") : "not pinned yet"}</span></button>`;
+}
+function renderRoofPanel(r){
+  const P = $("panel"), lab = {hi:"High", md:"Medium", lo:"Low"}[r.conf];
+  if (!ROOFIMG){ ROOFIMG = {}; grab("roof_images.json","json").then(j => { ROOFIMG = j; if (S.sel === r.id) renderRoofPanel(r); }).catch(e => console.error("[twin] roof images", e)); }
+  P.innerHTML = `<button type="button" class="back" id="back">← All findings</button>
+    <div><div class="eyebrow">Roof finding ${r.id} · drone survey, Feb 20, 2026</div><h2 style="margin-top:4px">${esc(r.title)}</h2></div>
+    <div class="pills"><span class="pill ${r.conf}">${lab} confidence</span></div>
+    <div class="actions">${r.pos ? `<button type="button" class="btn" id="go3dR">Show in 3D</button>` : ""}</div>
+    <p class="small">${r.pos ? `Marker placed where photo ${esc(r.via)} was aimed (GPS position plus camera direction), accurate to about 0.5–1 m.` : "Couldn't place this one: the photo rays miss the model."}</p>
+    <div class="thumbs">${r.photos.map(f => `<figure><button type="button" data-rimg="${f}" aria-label="Enlarge photo ${f}"><img loading="lazy" alt="Drone photo ${f}" src="${ROOFIMG[f] || ""}"></button><figcaption>${f}.JPG</figcaption></figure>`).join("")}</div>
+    <dl><dt>What the photos show</dt><dd>${esc(r.obs)}</dd><dt>Why it matters / suggestion</dt><dd>${esc(r.rec)}</dd>${r.check ? `<dt>Shayla to check</dt><dd class="chk">${esc(r.check)}</dd>` : ""}</dl>`;
+  $("back").onclick = () => { S.sel = null; history.replaceState(null, "", location.pathname + location.search); refresh(); };
+  if ($("go3dR")) $("go3dR").onclick = () => { setTab("3d"); const [cu,cv,cz] = three.ctr, tgt = new THREE.Vector3(r.pos[0]-cu, r.pos[1]-cv, r.pos[2]-cz);
+    const dir = three.camera.position.clone().sub(three.controls.target).normalize(); three.controls.target.copy(tgt); three.camera.position.copy(tgt.clone().add(dir.multiplyScalar(12))); setCut(7); };
+}
+function thermalBlock(id){
+  if (!S.thL) return "";
+  const fr = S.thL.frames.filter(f => f.group === id);
+  if (!fr.length) return `<p class="small">These thermal images aren't draped on the 3D model yet.</p>`;
+  return `<div><h3>Thermal on the 3D model</h3><p class="small" style="margin:4px 0 8px">${fr.length} of these images ${fr.length === 1 ? "is" : "are"} draped on the scan. Claude lined them up with the laser scan, so treat the fit as unconfirmed (typically within a few centimetres on the wall). Pick one to see the model from where the camera stood.</p>
+    <div class="frames">${fr.map(f => `<button type="button" data-view="${f.id}" title="${esc(f.method)}">${f.id} · ${f.time}</button>`).join("")}</div></div>`;
+}
+function renderPanel(){
+  const P = $("panel");
+  if (S.sel && roofPoi(S.sel)) return renderRoofPanel(roofPoi(S.sel));
+  if (!S.sel){
+    const secs = S.data.sections.map(s => `<div><h3>${esc(s.title)}</h3><div class="rows">${s.groups.map(id => rowHtml(group(id))).join("") || '<p class="small">No images from this area.</p>'}</div></div>`).join("");
+    const roofList = S.data.roof ? `<div><h3>Roof (drone survey)</h3><div class="rows">${S.data.roof.pois.map(r => `<button type="button" class="row" data-g="${r.id}"><span class="badge ${r.conf}" style="border-radius:4px;transform:rotate(45deg)"><span style="transform:rotate(-45deg);font-size:10px">${r.id}</span></span><span class="name">${esc(r.title)}</span><span></span><span class="meta">${r.photos.length} photos · ${r.pos ? "marked in 3D" : "not placed"}</span></button>`).join("")}</div></div>` : "";
+    P.innerHTML = `<div><h2>Findings</h2><p class="sub">An AI-assisted first pass, grouped by the moisture concerns CCHS listed. Pick a group to see its images and the call on it.</p></div>${secs}
+      ${S.data.plumb ? `<div><h3>Wall plumbness</h3><div class="rows">${[["front","Front"],["left","Left side"],["right","Right side"],["rear","Rear (main block)"],["wing_right","Wing, right side"],["wing_rear","Wing, rear"]].map(([k,l]) => { const p = S.data.plumb[k]; return `<div class="row" style="cursor:default;grid-template-columns:1fr auto"><span class="name">${l}</span><span style="font-family:var(--mono);font-size:12px">${p.lean_mm_per_m>0?"+":""}${p.lean_mm_per_m} mm/m · top ${p.top_offset_mm>0?"+":""}${p.top_offset_mm} mm</span></div>`; }).join("")}</div>
+        <p class="small">+ means the top leans outward. No wall leans more than about 1 in 320. Use “Wall deviation” in the 3D view to see it on the scan.</p></div>` : ""}
+      ${roofList}
+      <details><summary>Survey conditions and limits</summary><ul class="plain">${S.data.conditions.map(c => `<li>${esc(c)}</li>`).join("")}</ul></details>
+      <details><summary>Draft recommendations for CCHS</summary><ol class="plain">${S.data.recs.map(c => `<li>${esc(c)}</li>`).join("")}</ol></details>`;
+    return;
+  }
+  const g = group(S.sel), p = S.place[g.id], t = S.tri[g.id] || {}, cw = S.canWrite !== false && !!S.db;
+  P.innerHTML = `<button type="button" class="back" id="back">← All findings</button>
+    <div><h2>Group ${g.id}: ${esc(g.desc)}</h2><p class="sub">${esc(g.when)} · ${g.frames[0]} to ${g.frames[g.frames.length-1]} · ${g.frames.length} images</p></div>
+    <div class="pills"><span class="pill ${confCls(g.conf)}">${esc(g.conf)}</span><span class="pill ${triStatus(g.id)}">${TRI_LABEL[triStatus(g.id)]}</span></div>
+    <div class="actions">
+      ${p ? `<button type="button" class="btn" id="goSheet">Show on ${esc(SHEET_NAME[p.sheet])}</button><button type="button" class="btn" id="go3d">Show in 3D</button>` : ""}
+      ${cw ? `<button type="button" class="btn${p?"":" primary"}" id="placeBtn">${p ? "Move pin" : "Pin to a drawing"}</button>` : ""}
+      ${cw && p ? `<button type="button" class="btn" id="unpin">Remove pin</button>` : ""}
+    </div>
+    ${thermalBlock(g.id)}
+    ${p ? `<p class="small">Pinned on the ${esc(SHEET_NAME[p.sheet])} ${p.sheet.startsWith("plan")?"plan":p.sheet.startsWith("elev")?"elevation":"section"}${p.approx ? " by Claude from the photo sequence. Location not yet confirmed." : "."}${p.note ? " " + esc(p.note) : ""}</p>` : `<p class="small">Not pinned yet. ${cw ? "Use “Pin to a drawing”, then click the spot on a plan, elevation or section." : ""}</p>`}
+    <div class="thumbs">${g.frames.map(f => `<figure><button type="button" data-img="${f}" aria-label="Enlarge ${f}"><img loading="lazy" alt="${f}" src="${S.imgs[f] || ""}"></button><figcaption>${f}</figcaption></figure>`).join("")}</div>
+    <dl><dt>Observations</dt><dd>${esc(g.obs)}</dd><dt>Likely cause / what it means</dt><dd>${esc(g.cause)}</dd>${g.check ? `<dt>Shayla to check</dt><dd class="chk">${esc(g.check)}</dd>` : ""}</dl>
+    <div><h3>Triage</h3>
+      ${cw ? `<div class="seg" id="triSeg" role="group" aria-label="Triage status" style="margin-top:6px">${["open","confirmed","revise"].map(k => `<button type="button" data-k="${k}" aria-pressed="${triStatus(g.id)===k}">${TRI_LABEL[k]}</button>`).join("")}</div>
+        <label class="small" for="triNote" style="display:block;margin-top:8px">Note (what's right, what to change)</label>
+        <textarea id="triNote">${esc(t.note || "")}</textarea>
+        <div class="actions" style="margin-top:6px"><button type="button" class="btn primary" id="saveTri">Save note</button><span class="small" id="triMsg"></span></div>`
+      : `<p class="small">${t.note ? esc(t.note) : "No triage note yet."}${S.db ? "" : " This shared copy is read-only."}</p>`}
+    </div>`;
+  $("back").onclick = () => { S.sel = null; history.replaceState(null, "", location.pathname + location.search); refresh(); };
+  if (p){ $("goSheet").onclick = () => locate(g.id); $("go3d").onclick = () => locate3d(g.id); }
+  if ($("placeBtn")) $("placeBtn").onclick = () => startPlace(g.id);
+  if ($("unpin")) $("unpin").onclick = async () => { try { await S.db.doc("placements/" + g.id).delete(); } catch(e){ alertMsg(e); } };
+  if ($("triSeg")) $("triSeg").onclick = e => { const b = e.target.closest("button"); if (b) saveTri(g.id, b.dataset.k, $("triNote").value); };
+  if ($("saveTri")) $("saveTri").onclick = () => saveTri(g.id, triStatus(g.id), $("triNote").value);
+}
+$("panel").addEventListener("click", e => {
+  const r = e.target.closest(".row"); if (r){ select(r.dataset.g); return; }
+  const vf = e.target.closest("[data-view]"); if (vf){ viewFrom(vf.dataset.view); return; }
+  const ri = e.target.closest("[data-rimg]"); if (ri){ $("lb").querySelector("img").src = ROOFIMG[ri.dataset.rimg]; $("lb").querySelector("p").textContent = ri.dataset.rimg + ".JPG"; $("lb").hidden = false; return; }
+  const im = e.target.closest("[data-img]"); if (im){ $("lb").querySelector("img").src = S.imgs[im.dataset.img]; $("lb").querySelector("p").textContent = im.dataset.img; $("lb").hidden = false; }
+});
+$("lb").onclick = () => { $("lb").hidden = true; };
+document.addEventListener("keydown", e => { if (e.key !== "Escape") return; if (!$("lb").hidden) $("lb").hidden = true; else if (S.placing){ S.placing = null; renderBanner(); } });
+function alertMsg(e){ const m = $("triMsg"); if (m) m.textContent = e.code === "invalid_argument" ? "You don't have permission to save changes here." : "Couldn't save: " + (e.message || e.code); }
+
+// ---------- writes ----------
+async function saveTri(g, status, note){
+  if (!S.db) return; const m = $("triMsg"); if (m) m.textContent = "Saving…";
+  try { await S.db.doc("triage/" + g).set({status, note: note.slice(0, 4000), at: new Date().toISOString()}); if ($("triMsg")) $("triMsg").textContent = "Saved"; }
+  catch(e){ if (e.code === "invalid_argument") S.canWrite = false; alertMsg(e); }
+}
+function startPlace(g){ S.placing = g; if (S.tab === "3d") setTab(S.place[g] ? (S.place[g].sheet.startsWith("plan") ? "plan" : S.place[g].sheet.startsWith("elev") ? "elev" : "section") : (group(g).interior ? "plan" : "elev")); renderBanner(); }
+function renderBanner(){
+  const on = !!S.placing && S.tab !== "3d"; $("banner").hidden = !S.placing;
+  $("vsheet").classList.toggle("placing", on);
+  if (S.placing) $("bannertxt").textContent = S.tab === "3d" ? `Switch to a plan, elevation or section to pin Group ${S.placing}.` : `Click the spot on this sheet to pin Group ${S.placing}. Change sheets above if needed.`;
+  legend();
+}
+$("cancelplace").onclick = () => { S.placing = null; renderBanner(); };
+async function placeAt(X, Y){
+  const g = S.placing, name = S.sheet[S.tab], w = sheetToWorld(name, X, Y); S.placing = null; renderBanner();
+  const body = {sheet:name, wu:+w.u.toFixed(3), wv:+w.v.toFixed(3), wz:+w.z.toFixed(3), approx:false, by:"viewer", at:new Date().toISOString()};
+  S.place[g] = body; refresh();   // optimistic; the snapshot confirms it
+  try { await S.db.doc("placements/" + g).set(body); } catch(e){ if (e.code === "invalid_argument") S.canWrite = false; alertMsg(e); }
+}
+
+function refresh(){ status(); legend(); renderPanel(); drawSheetPins(); draw3dPins();
+  if (S.tab !== "3d"){ const counts = {}; for (const p of Object.values(S.place)) counts[p.sheet] = (counts[p.sheet]||0)+1;
+    for (const b of $("sheets").children){ const n = counts[b.dataset.s]; b.innerHTML = SHEET_NAME[b.dataset.s] + (n ? `<span class="n">${n}</span>` : ""); } } }
+
+// ---------- boot ----------
+async function boot(){
+  try { [S.data, S.geom] = await Promise.all([grab("twin.json","json"), grab("sheets.json","json")]); }
+  catch(e){ $("status").textContent = "Could not load the twin data: " + e.message; return; }
+  const m = location.hash.match(/^#g-([A-Z]|R[0-9]+)$/); if (m && (group(m[1]) || roofPoi(m[1]))) S.sel = m[1];
+  init3d(); initSheet(); setTab(S.tab); refresh();
+  $("cut").oninput = e => setCut(e.target.value);
+  document.querySelectorAll("[data-cut]").forEach(b => b.onclick = () => setCut(b.dataset.cut));
+  $("psize").oninput = e => { three.mat.size = 0.022 * +e.target.value; };
+  const mkUi = () => { $("mkBtn").setAttribute("aria-pressed", S.mk.on); $("mkBtn").textContent = "Markers: " + (S.mk.on ? "on" : "off"); $("mksize").value = S.mk.px; $("mksize").disabled = !S.mk.on; };
+  $("mkBtn").onclick = () => { S.mk.on = !S.mk.on; saveMk(); mkUi(); rescalePins(); applyBoard(); };
+  $("mksize").oninput = e => { S.mk.px = +e.target.value; saveMk(); rescalePins(); applyBoard(); };
+  mkUi();
+  $("reset3d").onclick = () => { view3d(); setCut(7); if (three.th && S.thSolo){ S.thSolo = null; $("thall").hidden = true; paintThermal(); } };
+  load3d().catch(e => { $("msg3d").textContent = "Could not load the 3D scan: " + e.message; });
+  grab("thermal_layer.json","json").then(j => { S.thL = S.thL || j; renderPanel(); }).catch(e => console.error("[twin] thermal layer", e));
+  grab("thermal_images.json","json").then(j => { S.imgs = j; renderPanel(); }).catch(e => { console.error("[twin] images", e); });
+  try { const snap = await grab("snapshot.json", "json"); S.place = snap.placements || {}; S.tri = snap.triage || {}; S.snapshot = snap.taken; }
+  catch(e){ console.error("[twin] snapshot", e); }
+  refresh();
+}
+</script>
+
+<div id="gate" style="position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;place-items:center;padding:16px">
+  <form id="gateform" style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;display:grid;gap:12px;width:min(380px,100%)">
+    <div class="eyebrow">Penn State Heritage 3D Lab</div>
+    <h1 style="font-size:22px">Centre Furnace Mansion thermal twin</h1>
+    <label for="pw" class="small">Enter the password to view.</label>
+    <input id="pw" type="password" autocomplete="current-password" required style="font:inherit;font-size:15px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)">
+    <label class="small" style="display:flex;gap:8px;align-items:center"><input id="remember" type="checkbox" checked> Remember on this device for 30 days</label>
+    <button class="btn primary" type="submit" style="font-size:14px;padding:9px">View</button>
+    <p id="gatemsg" class="small" role="alert" style="margin:0;min-height:1.2em"></p>
+  </form>
+</div>
+<script>
+(function(){
+  const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  let G = null;
+  async function tryKey(k){ const u = b64(G.check); try { await crypto.subtle.decrypt({name:"AES-GCM", iv:u.slice(0,12)}, k, u.slice(12)); return true; } catch(e){ return false; } }
+  async function open(k){ KEY = k; document.getElementById("gate").remove(); boot(); }
+  async function derive(pw){
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw.trim().toLowerCase()), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey({name:"PBKDF2", salt:b64(G.salt), iterations:G.iter, hash:"SHA-256"}, base, {name:"AES-GCM", length:256}, true, ["decrypt"]);
+  }
+  (async () => {
+    try { G = await (await fetch("gate.json")).json(); } catch(e){ document.getElementById("gatemsg").textContent = "Could not load the page: " + e.message; return; }
+    try { const s = JSON.parse(localStorage.getItem("cfm-twin-key") || "null");
+      if (s && s.exp > Date.now() && s.salt === G.salt){ const k = await crypto.subtle.importKey("raw", b64(s.k), "AES-GCM", false, ["decrypt"]); if (await tryKey(k)) return open(k); } } catch(e){}
+    document.getElementById("pw").focus();
+  })();
+  document.getElementById("gateform").addEventListener("submit", async e => {
+    e.preventDefault(); const msg = document.getElementById("gatemsg"); msg.textContent = "Checking…";
+    const k = await derive(document.getElementById("pw").value);
+    if (!(await tryKey(k))){ msg.textContent = "That password didn't work. Check it and try again."; return; }
+    if (document.getElementById("remember").checked){ try { const raw = new Uint8Array(await crypto.subtle.exportKey("raw", k));
+      localStorage.setItem("cfm-twin-key", JSON.stringify({k: btoa(String.fromCharCode(...raw)), salt: G.salt, exp: Date.now() + 30*864e5})); } catch(e){} }
+    open(k);
+  });
+})();
+</script>
+
+</html>
