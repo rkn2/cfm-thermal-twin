@@ -142,7 +142,7 @@ ul.plain,ol.plain{margin:6px 0 0;padding-left:18px;display:grid;gap:4px;font-siz
           <button class="tool" type="button" data-cut="-3.45">First</button>
           <button class="tool" type="button" data-cut="-6.0">Basement</button>
           <button class="tool" type="button" id="roofBtn" aria-pressed="true">Drone roof: on</button>
-          <span class="tool" role="group" aria-label="Point color" id="colormode">Color <button type="button" class="cm" data-cm="scan" aria-pressed="true">Scan</button><button type="button" class="cm" data-cm="dev" aria-pressed="false">Wall deviation</button><button type="button" class="cm" data-cm="thermal" aria-pressed="false">Thermal</button></span>
+          <span class="tool" role="group" aria-label="Point color" id="colormode">Color <button type="button" class="cm" data-cm="scan" aria-pressed="true">Scan</button><button type="button" class="cm" data-cm="dev" aria-pressed="false">Wall deviation</button><button type="button" class="cm" data-cm="thermal" aria-pressed="false">Thermal</button><button type="button" class="cm" data-cm="thermaldiff" aria-pressed="false">Thermal difference</button></span>
         </div>
         <div class="overlay bottom" id="thermalbar" style="bottom:52px" hidden>
           <span class="tool" role="group" aria-label="Thermal survey date" id="thdate">Survey <button type="button" class="cm" data-d="feb20" aria-pressed="true">Feb 20</button><button type="button" class="cm" data-d="mar27" aria-pressed="false">Mar 27</button></span>
@@ -392,7 +392,7 @@ async function setColorMode(m){
     r.g.setAttribute("color", new THREE.BufferAttribute(m === "scan" ? r.rgb : r.dim, 3, true)); }
   if (three.th) three.th.group.visible = m === "thermal";
   $("thermalbar").hidden = m !== "thermal";
-  for (const b of document.querySelectorAll("#colormode .cm")) b.setAttribute("aria-pressed", b.dataset.cm === m);
+  markColorButtons();
   legend();
 }
 
@@ -470,10 +470,11 @@ function setThermalDate(d, force){
   for (const b of document.querySelectorAll("#thdate .cm")) b.setAttribute("aria-pressed", b.dataset.d === d);
   paintThermal();
 }
-$("thshow").addEventListener("click", async e => { const b = e.target.closest(".cm"); if (!b || !three.th) return;
-  if (b.dataset.v === "d"){ try { await loadDiff(); } catch(err){ console.error("[twin] diff", err); return; } }
-  S.thShow = b.dataset.v; for (const x of document.querySelectorAll("#thshow .cm")) x.setAttribute("aria-pressed", x.dataset.v === S.thShow);
-  $("thscale").hidden = S.thShow === "d"; paintThermal(); });
+async function setThermalShow(v){
+  if (v === "d"){ try { await loadDiff(); } catch(err){ console.error("[twin] diff", err); $("thread").textContent = "Could not load the difference layer: " + err.message; return; } }
+  S.thShow = v; for (const x of document.querySelectorAll("#thshow .cm")) x.setAttribute("aria-pressed", x.dataset.v === S.thShow);
+  $("thscale").hidden = S.thShow === "d"; paintThermal(); markColorButtons(); }
+$("thshow").addEventListener("click", e => { const b = e.target.closest(".cm"); if (b && three.th) setThermalShow(b.dataset.v); });
 $("thdate").addEventListener("click", e => { const b = e.target.closest(".cm"); if (b && three.th) setThermalDate(b.dataset.d); });
 for (const id of ["thlo", "thhi"]) $(id).addEventListener("change", () => { if (!three.th) return; const lo = +$("thlo").value, hi = +$("thhi").value; if (hi > lo){ if (S.thScopeIn) three.th.rangeIn = [lo, hi]; else three.th.range = [lo, hi]; paintThermal(); } });
 $("thall").addEventListener("click", () => { S.thSolo = null; S.thScopeIn = false; $("thlo").value = three.th.range[0]; $("thhi").value = three.th.range[1]; $("thall").hidden = true; paintThermal(); });
@@ -499,7 +500,12 @@ async function viewFrom(id){
   three.controls.target.copy(c.position.clone().add(dir.multiplyScalar(Math.max(3, f.dist)))); three.controls.update();
   $("thread").textContent = `Viewing from ${f.id}'s camera`;
 }
-document.getElementById("colormode").addEventListener("click", e => { const b = e.target.closest(".cm"); if (b) setColorMode(b.dataset.cm); });
+document.getElementById("colormode").addEventListener("click", async e => { const b = e.target.closest(".cm"); if (!b) return;
+  if (b.dataset.cm === "thermaldiff"){ await setColorMode("thermal"); if (three.th) await setThermalShow("d"); }
+  else { if (b.dataset.cm === "thermal" && three.th && S.thShow === "d") await setThermalShow("t"); await setColorMode(b.dataset.cm); }
+  markColorButtons(); });
+function markColorButtons(){ const cur = S.cm === "thermal" && S.thShow === "d" ? "thermaldiff" : S.cm;
+  for (const x of document.querySelectorAll("#colormode .cm")) x.setAttribute("aria-pressed", x.dataset.cm === cur); }
 
 // ---------- sheets ----------
 const V = {s:1, x:0, y:0};
@@ -622,7 +628,8 @@ function renderPanel(){
   if (!S.sel){
     const secs = S.data.sections.map(s => `<div><h3>${esc(s.title)}</h3><div class="rows">${s.groups.map(id => rowHtml(group(id))).join("") || '<p class="small">No images from this area.</p>'}</div></div>`).join("");
     const roofList = S.data.roof ? `<div><h3>Roof (drone survey)</h3><div class="rows">${S.data.roof.pois.map(r => `<button type="button" class="row" data-g="${r.id}"><span class="badge ${r.conf}" style="border-radius:4px;transform:rotate(45deg)"><span style="transform:rotate(-45deg);font-size:10px">${r.id}</span></span><span class="name">${esc(r.title)}</span><span></span><span class="meta">${r.photos.length} photos · ${r.pos ? "marked in 3D" : "not placed"}</span></button>`).join("")}</div></div>` : "";
-    P.innerHTML = `<div><h2>Findings</h2><p class="sub">An AI-assisted first pass, grouped by the moisture concerns CCHS listed. Pick a group to see its images and the call on it.</p></div>${secs}
+    P.innerHTML = `<div><h2>Findings</h2><p class="sub">An AI-assisted first pass, grouped by the moisture concerns CCHS listed. Pick a group to see its images and the call on it.</p>
+      <p class="small" style="margin-top:6px"><a href="https://claude.ai/artifact/7bWpictLLfEyLKf7SxreEU" target="_blank" rel="noopener">Open the thermal analysis page</a> (anomaly maps and a comparison of the two survey days; team access only)</p></div>${secs}
       ${S.data.plumb ? `<div><h3>Wall plumbness</h3><div class="rows">${[["front","Front"],["left","Left side"],["right","Right side"],["rear","Rear (main block)"],["wing_right","Wing, right side"],["wing_rear","Wing, rear"]].map(([k,l]) => { const p = S.data.plumb[k]; return `<div class="row" style="cursor:default;grid-template-columns:1fr auto"><span class="name">${l}</span><span style="font-family:var(--mono);font-size:12px">${p.lean_mm_per_m>0?"+":""}${p.lean_mm_per_m} mm/m · top ${p.top_offset_mm>0?"+":""}${p.top_offset_mm} mm</span></div>`; }).join("")}</div>
         <p class="small">+ means the top leans outward. No wall leans more than about 1 in 320. Use “Wall deviation” in the 3D view to see it on the scan.</p></div>` : ""}
       ${roofList}
