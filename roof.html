@@ -141,21 +141,23 @@ async function boot(){
 <script>
 (function(){
   const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-  let G = null;
+  let G = null; let gateReady = null;
   async function tryKey(k){ const u = b64(G.check); try { await crypto.subtle.decrypt({name:"AES-GCM", iv:u.slice(0,12)}, k, u.slice(12)); return true; } catch(e){ return false; } }
   async function open(k){ KEY = k; document.getElementById("gate").remove(); boot(); }
   async function derive(pw){
     const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw.trim().toLowerCase()), "PBKDF2", false, ["deriveKey"]);
     return crypto.subtle.deriveKey({name:"PBKDF2", salt:b64(G.salt), iterations:G.iter, hash:"SHA-256"}, base, {name:"AES-GCM", length:256}, true, ["decrypt"]);
   }
+  gateReady = (async () => { G = await (await fetch("gate.json")).json(); return G; })();
   (async () => {
-    try { G = await (await fetch("gate.json")).json(); } catch(e){ document.getElementById("gatemsg").textContent = "Could not load the page: " + e.message; return; }
+    try { await gateReady; } catch(e){ document.getElementById("gatemsg").textContent = "Could not load the page: " + e.message; return; }
     try { const s = JSON.parse(localStorage.getItem("cfm-twin-key") || "null");
       if (s && s.exp > Date.now() && s.salt === G.salt){ const k = await crypto.subtle.importKey("raw", b64(s.k), "AES-GCM", false, ["decrypt"]); if (await tryKey(k)) return open(k); } } catch(e){}
     document.getElementById("pw").focus();
   })();
   document.getElementById("gateform").addEventListener("submit", async e => {
     e.preventDefault(); const msg = document.getElementById("gatemsg"); msg.textContent = "Checking…";
+    try { await gateReady; } catch(err){ msg.textContent = "Could not load the page: " + err.message; return; }
     const k = await derive(document.getElementById("pw").value);
     if (!(await tryKey(k))){ msg.textContent = "That password didn't work. Check it and try again."; return; }
     if (document.getElementById("remember").checked){ try { const raw = new Uint8Array(await crypto.subtle.exportKey("raw", k));

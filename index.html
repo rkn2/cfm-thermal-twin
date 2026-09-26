@@ -178,9 +178,9 @@ ul.plain,ol.plain{margin:6px 0 0;padding-left:18px;display:grid;gap:4px;font-siz
   </main>
   <details class="about">
     <summary>About this twin</summary>
-    <p>This combines the March 23, 2026 laser scan (Z+F FlexScan 22) with the February 20 and March 27 FLIR E50 thermal surveys, both by Shayla Hines (Penn State AE). The thermal findings are an AI-assisted first pass for Shayla to triage. Pins marked with a dashed ring were placed by Claude from the order of the photos and still need confirming. Unplaced groups are waiting for Shayla to pin them. This shared copy is a read-only snapshot taken 2026-09-25; pins and notes are edited in the team's working copy.</p>
+    <p>This combines the March 23, 2026 laser scan (Z+F FlexScan 22) with the February 20 and March 27 FLIR E50 thermal surveys, both by Shayla Hines (Penn State AE). The thermal findings are an AI-assisted first pass for Shayla to triage. Pins marked with a dashed ring were placed by Claude from the order of the photos and still need confirming. Unplaced groups are waiting for Shayla to pin them. This shared copy is a read-only snapshot taken 2026-09-26; pins and notes are edited in the team's working copy.</p>
     <p>The roof in the 3D view comes from Shayla's drone video and photos (Feb 20, 2026), turned into a 3D model with Apple Object Capture and registered to the laser scan. Diamond markers show where each roof photo was aimed, accurate to about 0.5–1 m.</p>
-    <p>“Thermal” in the 3D view drapes the FLIR images onto the scan: 36 exterior images from 10 groups and 20 room images: the coat room (groups J and O) and the Hearth Room stove corner (groups I and L), each lined up with the laser scan by Claude from the camera's built-in visible photo or from window and vent outlines. Where the pale masonry scanned sparsely, the image sits on a simple measured model of the walls. Temperatures use the camera's settings (emissivity 0.95, reflected temperature 68 °F). Room images sit on the full-resolution scan and use their own colour scale, since rooms read 20–30 °F warmer than the outside walls. The cold cavity (N), groups A and M, and the coat-room ceiling-patch frames are not draped yet.</p>
+    <p>“Thermal” in the 3D view drapes the FLIR images onto the scan: 36 exterior images from 10 groups and 20 room images: the coat room (groups J and O) and the Hearth Room stove corner (groups I and L), each lined up with the laser scan by Claude from the camera's built-in visible photo or from window and vent outlines. Where the pale masonry scanned sparsely, the image sits on a simple measured model of the walls. Temperatures use the camera's settings (emissivity 0.95, reflected temperature 68 °F), so outside walls read about 3 °F low; comparisons within a wall are not affected. Room images sit on the full-resolution scan and use their own colour scale, since rooms read 20–30 °F warmer than the outside walls. Not draped: groups A, D, M, N (the cold cavity, which couldn't be located in the scan), R and T, and the coat-room ceiling-patch frames.</p>
     <p>In the thermal view, “Difference” shows each outside wall relative to the 1.5 m of wall around it, and each room as the temperature factor <i>f</i> (below 0.75 means mould risk). The numbers behind it, including anomaly maps and a comparison of the two survey days, are on the <a href="analysis.html">thermal analysis page</a>.</p>
     <p>The 3D view is a 10-million-point copy of the full 506-million-point scan, resampled to even density (denser on the building than on the ground) with scanner edge streaks filtered out. It loads a quarter first, then adds detail; phones get the quarter only. The drawings are at 1 cm per pixel (1:100). Orientation follows the building's walls, not true north.</p>
   </details>
@@ -236,7 +236,7 @@ let ROOFIMG = null;
 const WALL = {front:-3.95, right:10.6, secA:0.0, secB:7.0};
 function sheetToWorld(name, X, Y){
   const G = S.geom, g = G.sheets[name], k = g.kind, R = G.R, col = X - g.L + g.x0, row = Y - g.T + g.y0, z = G.Z1 - row*R;
-  if (k.kind === "plan") return {u:G.U0+col*R, v:G.V1-row*R, z:k.floor+1.2};
+  if (k.kind === "plan") return {u:G.U0+col*R, v:G.V1-row*R, z:(k.cut ?? k.floor+1.2)};
   if (k.kind === "section"){ const ax = k.axis || (k.id === "A" ? "v" : "u"), val = k.val ?? (k.id === "A" ? WALL.secA : WALL.secB);
     return ax === "v" ? {u:G.U0+col*R, v:val, z} : {u:val, v:G.V0+col*R, z}; }
   if (k.side === "front") return {u:G.U0+col*R, v:WALL.front, z};
@@ -742,21 +742,23 @@ async function boot(){
 <script>
 (function(){
   const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-  let G = null;
+  let G = null; let gateReady = null;
   async function tryKey(k){ const u = b64(G.check); try { await crypto.subtle.decrypt({name:"AES-GCM", iv:u.slice(0,12)}, k, u.slice(12)); return true; } catch(e){ return false; } }
   async function open(k){ KEY = k; document.getElementById("gate").remove(); boot(); }
   async function derive(pw){
     const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw.trim().toLowerCase()), "PBKDF2", false, ["deriveKey"]);
     return crypto.subtle.deriveKey({name:"PBKDF2", salt:b64(G.salt), iterations:G.iter, hash:"SHA-256"}, base, {name:"AES-GCM", length:256}, true, ["decrypt"]);
   }
+  gateReady = (async () => { G = await (await fetch("gate.json")).json(); return G; })();
   (async () => {
-    try { G = await (await fetch("gate.json")).json(); } catch(e){ document.getElementById("gatemsg").textContent = "Could not load the page: " + e.message; return; }
+    try { await gateReady; } catch(e){ document.getElementById("gatemsg").textContent = "Could not load the page: " + e.message; return; }
     try { const s = JSON.parse(localStorage.getItem("cfm-twin-key") || "null");
       if (s && s.exp > Date.now() && s.salt === G.salt){ const k = await crypto.subtle.importKey("raw", b64(s.k), "AES-GCM", false, ["decrypt"]); if (await tryKey(k)) return open(k); } } catch(e){}
     document.getElementById("pw").focus();
   })();
   document.getElementById("gateform").addEventListener("submit", async e => {
     e.preventDefault(); const msg = document.getElementById("gatemsg"); msg.textContent = "Checking…";
+    try { await gateReady; } catch(err){ msg.textContent = "Could not load the page: " + err.message; return; }
     const k = await derive(document.getElementById("pw").value);
     if (!(await tryKey(k))){ msg.textContent = "That password didn't work. Check it and try again."; return; }
     if (document.getElementById("remember").checked){ try { const raw = new Uint8Array(await crypto.subtle.exportKey("raw", k));
