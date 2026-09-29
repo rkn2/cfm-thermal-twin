@@ -418,7 +418,7 @@ async function loadThermal(){
   order.forEach((f, rank) => {
     const buf = bufs[f.file], nv = f.gw*f.gh, q = new Uint16Array(buf, f.offset, nv*3), ok = new Uint8Array(buf, f.offset + nv*6, nv);
     const temps = new Int16Array(buf.slice(f.offset + f.toff, f.offset + f.toff + TW*TH*2)), pos = new Float32Array(nv*3), uv = new Float32Array(nv*2), dist = new Float32Array(nv);
-    const lift = 0.03 + 0.012*rank;
+    const lift = 0.03;   // same small offset for every frame; draw order comes from polygonOffset/renderOrder (a per-rank lift stacked frames up to 0.6 m off the wall)
     for (let k=0;k<nv;k++){
       let x = (q[3*k]/65535*2-1)*ext[0], y = (q[3*k+1]/65535*2-1)*ext[1], z = (q[3*k+2]/65535*2-1)*ext[2];
       const dx = f.cam[0]-x, dy = f.cam[1]-y, dz = f.cam[2]-z, d = Math.hypot(dx, dy, dz) || 1; dist[k] = d;
